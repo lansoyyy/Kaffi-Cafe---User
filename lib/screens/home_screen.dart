@@ -1,10 +1,115 @@
 import 'package:flutter/material.dart';
+import 'package:kaffi_cafe/screens/tabs/home_tab.dart';
+import 'package:kaffi_cafe/utils/colors.dart';
+import 'package:kaffi_cafe/widgets/text_widget.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _screens = [
+    // Home Screen
+    HomeTab(),
+    // Order Screen
+    SizedBox(
+      width: double.infinity,
+      height: double.infinity,
+      child: Center(
+        child: TextWidget(
+          text: 'Order Screen',
+          fontSize: 24,
+          color: textBlack,
+          isBold: true,
+        ),
+      ),
+    ),
+    // Reward Screen
+    SizedBox(
+      width: double.infinity,
+      height: double.infinity,
+      child: Center(
+        child: TextWidget(
+          text: 'Reward Screen',
+          fontSize: 24,
+          color: textBlack,
+          isBold: true,
+        ),
+      ),
+    ),
+    // Account Screen
+    SizedBox(
+      width: double.infinity,
+      height: double.infinity,
+      child: Center(
+        child: TextWidget(
+          text: 'Account Screen',
+          fontSize: 24,
+          color: textBlack,
+          isBold: true,
+        ),
+      ),
+    ),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold();
+    return Scaffold(
+      appBar: AppBar(
+        foregroundColor: Colors.white,
+        backgroundColor: bayanihanBlue,
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: Icon(
+              Icons.logout,
+            ),
+          ),
+        ],
+        title: TextWidget(
+          text: 'Kaffi Cafe',
+          fontSize: 24,
+          fontFamily: 'Bold',
+          color: Colors.white,
+        ),
+      ),
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart),
+            label: 'Order',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.star),
+            label: 'Reward',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Account',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: bayanihanBlue,
+        unselectedItemColor: charcoalGray,
+        backgroundColor: Colors.white,
+        onTap: _onItemTapped,
+      ),
+    );
   }
 }
