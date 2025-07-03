@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kaffi_cafe/screens/tabs/home_tab.dart';
+import 'package:kaffi_cafe/screens/tabs/order_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
+import 'package:kaffi_cafe/widgets/logout_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,18 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Home Screen
     HomeTab(),
     // Order Screen
-    SizedBox(
-      width: double.infinity,
-      height: double.infinity,
-      child: Center(
-        child: TextWidget(
-          text: 'Order Screen',
-          fontSize: 24,
-          color: textBlack,
-          isBold: true,
-        ),
-      ),
-    ),
+    OrderScreen(),
     // Reward Screen
     SizedBox(
       width: double.infinity,
@@ -71,7 +62,9 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: bayanihanBlue,
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              logout(context, HomeScreen());
+            },
             icon: Icon(
               Icons.logout,
             ),

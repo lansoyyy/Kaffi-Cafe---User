@@ -9,7 +9,7 @@ class TextWidget extends StatelessWidget {
   final bool? isItalize;
   final bool? isBold;
   final int? maxLines;
-  final int? letterSpacing;
+  final double? letterSpacing;
   final int? wordSpacing;
   final TextAlign align;
 
@@ -35,7 +35,7 @@ class TextWidget extends StatelessWidget {
       maxLines: maxLines,
       style: TextStyle(
           decorationColor: color,
-          letterSpacing: letterSpacing!.toDouble(),
+          letterSpacing: letterSpacing,
           wordSpacing: wordSpacing!.toDouble(),
           overflow: TextOverflow.ellipsis,
           fontStyle: isItalize! ? FontStyle.italic : null,
