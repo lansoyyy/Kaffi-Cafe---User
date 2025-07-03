@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:kaffi_cafe/screens/checkout_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/divider_widget.dart';
@@ -498,7 +500,9 @@ class _OrderScreenState extends State<OrderScreen> {
               fontFamily: 'Regular',
               maxLines: 3,
             ),
+            Divider(),
             const SizedBox(height: 18),
+
             // Order Button
             Center(
               child: ButtonWidget(
@@ -514,6 +518,24 @@ class _OrderScreenState extends State<OrderScreen> {
                 width: screenWidth * 0.6,
               ),
             ),
+            const SizedBox(height: 20),
+            // Order Button
+            Center(
+              child: ButtonWidget(
+                label: 'Checkout Orders',
+                onPressed: () {
+                  Get.to(CheckoutScreen(),
+                      transition: Transition.circularReveal);
+                },
+                color: bayanihanBlue,
+                textColor: plainWhite,
+                fontSize: fontSize + 2,
+                height: 50,
+                radius: 12,
+                width: screenWidth * 0.6,
+              ),
+            ),
+
             const SizedBox(height: 30),
           ],
         ),

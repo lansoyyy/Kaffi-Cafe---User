@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kaffi_cafe/screens/tabs/account_tab.dart';
 import 'package:kaffi_cafe/screens/tabs/home_tab.dart';
 import 'package:kaffi_cafe/screens/tabs/order_screen.dart';
 import 'package:kaffi_cafe/screens/tabs/reward_tab.dart';
@@ -24,18 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Reward Screen
     RewardScreen(),
     // Account Screen
-    SizedBox(
-      width: double.infinity,
-      height: double.infinity,
-      child: Center(
-        child: TextWidget(
-          text: 'Account Screen',
-          fontSize: 24,
-          color: textBlack,
-          isBold: true,
-        ),
-      ),
-    ),
+    AccountScreen(),
   ];
 
   void _onItemTapped(int index) {
