@@ -229,7 +229,7 @@ class _OrderScreenState extends State<OrderScreen> {
                         width: 175,
                         height: 225,
                         child: Card(
-                          elevation: 3,
+                          elevation: 1,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
                           ),

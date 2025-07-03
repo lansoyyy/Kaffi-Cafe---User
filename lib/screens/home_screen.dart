@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kaffi_cafe/screens/tabs/home_tab.dart';
 import 'package:kaffi_cafe/screens/tabs/order_screen.dart';
+import 'package:kaffi_cafe/screens/tabs/reward_tab.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/logout_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
@@ -21,18 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Order Screen
     OrderScreen(),
     // Reward Screen
-    SizedBox(
-      width: double.infinity,
-      height: double.infinity,
-      child: Center(
-        child: TextWidget(
-          text: 'Reward Screen',
-          fontSize: 24,
-          color: textBlack,
-          isBold: true,
-        ),
-      ),
-    ),
+    RewardScreen(),
     // Account Screen
     SizedBox(
       width: double.infinity,

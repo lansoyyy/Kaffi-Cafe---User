@@ -293,7 +293,7 @@ class _HomeTabState extends State<HomeTab> {
                     .where((item) => item['category'] == _selectedCategory)
                     .toList()[index];
                 return Card(
-                  elevation: 3,
+                  elevation: 1,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
