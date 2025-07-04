@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
-import 'package:kaffi_cafe/widgets/divider_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
 
 class ChatFaqSupportScreen extends StatefulWidget {
@@ -56,9 +55,51 @@ class _ChatFaqSupportScreenState extends State<ChatFaqSupportScreen> {
     },
   ];
 
-  // Track selected FAQ
-  String? _selectedQuestion;
-  String? _selectedAnswer;
+  // Chat messages
+  final List<Map<String, String>> _chatMessages = [
+    {
+      'sender': 'bot',
+      'message':
+          'Hi! I\'m Kaffi Bot. Ask me a question or select one of the common questions below to get help with your Kaffi Cafe experience.',
+    },
+  ];
+
+  // Text controller for user input
+  final TextEditingController _textController = TextEditingController();
+
+  // Scroll controller for chat list
+  final ScrollController _scrollController = ScrollController();
+
+  // Handle FAQ selection or user input
+  void _handleQuestion(String question) {
+    final faq = _faqs.firstWhere(
+      (faq) => faq['question'] == question,
+      orElse: () => {
+        'answer':
+            'Sorry, I don\'t have an answer for that. Please try another question or contact live support.'
+      },
+    );
+    setState(() {
+      _chatMessages.add({'sender': 'user', 'message': question});
+      _chatMessages.add({'sender': 'bot', 'message': faq['answer']!});
+    });
+    _textController.clear();
+    // Scroll to bottom after adding new messages
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,178 +118,179 @@ class _ChatFaqSupportScreenState extends State<ChatFaqSupportScreen> {
           color: Colors.white,
         ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-
-              DividerWidget(),
-              // Chatbot Introduction
-              TextWidget(
-                text: 'Ask Kaffi Bot',
-                fontSize: 20,
-                color: textBlack,
-                isBold: true,
-                fontFamily: 'Bold',
-                letterSpacing: 1.2,
-              ),
-              const SizedBox(height: 12),
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    color: plainWhite,
-                    boxShadow: [
-                      BoxShadow(
-                        color: bayanihanBlue.withOpacity(0.1),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextWidget(
-                        text:
-                            'Hi! I\'m Kaffi Bot. Select a question below to get help with your Kaffi Cafe experience.',
-                        fontSize: fontSize,
-                        color: charcoalGray,
-                        fontFamily: 'Regular',
-                        maxLines: 3,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              DividerWidget(),
-              // FAQ Questions
-              TextWidget(
-                text: 'Common Questions',
-                fontSize: 20,
-                color: textBlack,
-                isBold: true,
-                fontFamily: 'Bold',
-                letterSpacing: 1.2,
-              ),
-              const SizedBox(height: 12),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _faqs.length,
-                itemBuilder: (context, index) {
-                  final faq = _faqs[index];
-                  return Card(
-                    elevation: 3,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          _selectedQuestion = faq['question'];
-                          _selectedAnswer = faq['answer'];
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 12.0),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          color: plainWhite,
-                          border: Border.all(
-                            color: _selectedQuestion == faq['question']
-                                ? bayanihanBlue
-                                : ashGray,
-                            width: 1.0,
-                          ),
+      body: Column(
+        children: [
+          // Chat Area
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              itemCount: _chatMessages.length,
+              itemBuilder: (context, index) {
+                final message = _chatMessages[index];
+                final isBot = message['sender'] == 'bot';
+                return Align(
+                  alignment:
+                      isBot ? Alignment.centerLeft : Alignment.centerRight,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 6.0),
+                    constraints: BoxConstraints(maxWidth: screenWidth * 0.75),
+                    padding: const EdgeInsets.all(12.0),
+                    decoration: BoxDecoration(
+                      color:
+                          isBot ? cloudWhite : bayanihanBlue.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: bayanihanBlue.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
-                        child: TextWidget(
-                          text: faq['question']!,
-                          fontSize: fontSize,
-                          color: _selectedQuestion == faq['question']
-                              ? bayanihanBlue
-                              : textBlack,
-                          isBold: true,
-                          fontFamily: 'Bold',
-                          maxLines: 2,
-                        ),
-                      ),
+                      ],
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 18),
-              DividerWidget(),
-              // Chatbot Response
-              TextWidget(
-                text: 'Kaffi Bot Response',
-                fontSize: 20,
-                color: textBlack,
-                isBold: true,
-                fontFamily: 'Bold',
-                letterSpacing: 1.2,
-              ),
-              const SizedBox(height: 12),
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    color: plainWhite,
-                    boxShadow: [
-                      BoxShadow(
-                        color: bayanihanBlue.withOpacity(0.1),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    child: TextWidget(
+                      text: message['message']!,
+                      fontSize: fontSize - 1,
+                      color: isBot ? textBlack : plainWhite,
+                      fontFamily: 'Regular',
+                      maxLines: null,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextWidget(
-                        text: _selectedQuestion ??
-                            'Select a question above to see the answer.',
-                        fontSize: fontSize + 1,
-                        color: textBlack,
-                        isBold: true,
-                        fontFamily: 'Bold',
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 8),
-                      TextWidget(
-                        text: _selectedAnswer ??
-                            'Kaffi Bot will respond here once you select a question.',
-                        fontSize: fontSize,
-                        color: charcoalGray,
-                        fontFamily: 'Regular',
-                        maxLines: 5,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-            ],
+                );
+              },
+            ),
           ),
-        ),
+          // Suggested Questions
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextWidget(
+                  text: 'Suggested Questions',
+                  fontSize: fontSize,
+                  color: textBlack,
+                  isBold: true,
+                  fontFamily: 'Bold',
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _faqs.map((faq) {
+                    return ChoiceChip(
+                      showCheckmark: false,
+                      label: TextWidget(
+                        text: faq['question']!,
+                        fontSize: fontSize - 2,
+                        color: textBlack,
+                        fontFamily: 'Regular',
+                      ),
+                      selected: false,
+                      onSelected: (selected) {
+                        if (selected) {
+                          _handleQuestion(faq['question']!);
+                        }
+                      },
+                      backgroundColor: plainWhite,
+                      selectedColor: bayanihanBlue.withOpacity(0.2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: ashGray,
+                          width: 1.0,
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      elevation: 1,
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          // Input Area
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            decoration: BoxDecoration(
+              color: plainWhite,
+              border: Border(
+                top: BorderSide(color: ashGray, width: 1.0),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _textController,
+                    decoration: InputDecoration(
+                      hintText: 'Type your question...',
+                      hintStyle: TextStyle(
+                        fontSize: fontSize - 2,
+                        color: charcoalGray,
+                        fontFamily: 'Regular',
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: ashGray,
+                          width: 1.0,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: ashGray,
+                          width: 1.0,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: bayanihanBlue,
+                          width: 1.5,
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: cloudWhite,
+                    ),
+                    style: TextStyle(
+                      fontSize: fontSize - 2,
+                      color: textBlack,
+                      fontFamily: 'Regular',
+                    ),
+                    onSubmitted: (value) {
+                      if (value.isNotEmpty) {
+                        _handleQuestion(value);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ButtonWidget(
+                  label: 'Send',
+                  onPressed: () {
+                    if (_textController.text.isNotEmpty) {
+                      _handleQuestion(_textController.text);
+                    }
+                  },
+                  color: bayanihanBlue,
+                  textColor: plainWhite,
+                  fontSize: fontSize - 1,
+                  height: 40,
+                  radius: 12,
+                  width: 80,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
