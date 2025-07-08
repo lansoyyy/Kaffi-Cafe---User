@@ -257,8 +257,12 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                               ? plainWhite
                               : ashGray.withOpacity(0.3),
                           border: Border.all(
-                            color: isSelected ? bayanihanBlue : ashGray,
-                            width: 1.5,
+                            color: isSelected
+                                ? bayanihanBlue
+                                : isAvailable
+                                    ? palmGreen
+                                    : festiveRed,
+                            width: 2,
                           ),
                         ),
                         child: Column(
