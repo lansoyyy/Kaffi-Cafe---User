@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kaffi_cafe/screens/auth/signup_screen.dart';
 import 'package:kaffi_cafe/screens/home_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
@@ -58,17 +59,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _handleSignUp() {
     // Placeholder for sign-up logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: TextWidget(
-          text: 'Sign Up clicked (implement sign-up logic)',
-          fontSize: 16,
-          color: plainWhite,
-          fontFamily: 'Regular',
-        ),
-        backgroundColor: bayanihanBlue,
-        duration: const Duration(seconds: 3),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SignUpScreen()),
     );
   }
 
