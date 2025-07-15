@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:kaffi_cafe/screens/chatsupport_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
@@ -14,10 +16,12 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
-  // Sample user data
-  final String _userName = 'John Doe';
-  final String _userEmail = 'john.doe@example.com';
-  final int _userPoints = 250;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  // Get user data from Firebase Auth
+  String get _userName => _auth.currentUser?.displayName ?? 'User';
+  String get _userEmail => _auth.currentUser?.email ?? 'No email';
 
   // Sample order history
   final List<Map<String, dynamic>> _orderHistory = [
@@ -71,118 +75,135 @@ class _AccountScreenState extends State<AccountScreen> {
     final fontSize = screenWidth * 0.036;
     final padding = screenWidth * 0.035;
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User Information
-            TextWidget(
-              text: 'Profile',
-              fontSize: 22,
-              color: textBlack,
-              isBold: true,
-              fontFamily: 'Bold',
-              letterSpacing: 1.3,
-            ),
-            const SizedBox(height: 16),
-            Card(
-              elevation: 5,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: bayanihanBlue.withOpacity(0.2),
-                  width: 1.0,
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _firestore.collection('users').doc(_auth.currentUser?.uid).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        final userData = snapshot.data?.data() as Map<String, dynamic>?;
+        final userName = userData?['name'] ?? _userName;
+        final userEmail = userData?['email'] ?? _userEmail;
+        final userPoints = userData?['points'] ?? 0;
+        final totalOrders = userData?['totalOrders'] ?? 0;
+
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // User Information
+                TextWidget(
+                  text: 'Profile',
+                  fontSize: 22,
+                  color: textBlack,
+                  isBold: true,
+                  fontFamily: 'Bold',
+                  letterSpacing: 1.3,
                 ),
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(20.0),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: plainWhite,
-                  boxShadow: [
-                    BoxShadow(
-                      color: bayanihanBlue.withOpacity(0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
+                const SizedBox(height: 16),
+                Card(
+                  elevation: 5,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                      color: bayanihanBlue.withOpacity(0.2),
+                      width: 1.0,
                     ),
-                  ],
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Avatar Placeholder
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: bayanihanBlue.withOpacity(0.1),
-                        border: Border.all(
-                          color: bayanihanBlue,
-                          width: 1.5,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(20.0),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: plainWhite,
+                      boxShadow: [
+                        BoxShadow(
+                          color: bayanihanBlue.withOpacity(0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
-                      ),
-                      child: Center(
-                        child: TextWidget(
-                          text: _userName.isNotEmpty ? _userName[0] : 'J',
-                          fontSize: 28,
-                          color: bayanihanBlue,
-                          isBold: true,
-                          fontFamily: 'Bold',
-                        ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 16),
-                    // Profile Details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Avatar Placeholder
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: bayanihanBlue.withOpacity(0.1),
+                            border: Border.all(
+                              color: bayanihanBlue,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Center(
+                            child: TextWidget(
+                              text: userName.isNotEmpty ? userName[0] : 'U',
+                              fontSize: 28,
+                              color: bayanihanBlue,
+                              isBold: true,
+                              fontFamily: 'Bold',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        // Profile Details
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.person_outline,
-                                color: bayanihanBlue,
-                                size: fontSize + 4,
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.person_outline,
+                                    color: bayanihanBlue,
+                                    size: fontSize + 4,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TextWidget(
+                                    text: userName,
+                                    fontSize: fontSize + 3,
+                                    color: textBlack,
+                                    isBold: true,
+                                    fontFamily: 'Bold',
+                                    maxLines: 1,
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              TextWidget(
-                                text: _userName,
-                                fontSize: fontSize + 3,
-                                color: textBlack,
-                                isBold: true,
-                                fontFamily: 'Bold',
-                                maxLines: 1,
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.email_outlined,
+                                    color: bayanihanBlue,
+                                    size: fontSize + 4,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TextWidget(
+                                    text: userEmail,
+                                    fontSize: fontSize + 1,
+                                    color: charcoalGray,
+                                    fontFamily: 'Regular',
+                                    maxLines: 1,
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.email_outlined,
-                                color: bayanihanBlue,
-                                size: fontSize + 4,
-                              ),
-                              const SizedBox(width: 8),
-                              TextWidget(
-                                text: _userEmail,
-                                fontSize: fontSize + 1,
-                                color: charcoalGray,
-                                fontFamily: 'Regular',
-                                maxLines: 1,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
             const SizedBox(height: 18),
             DividerWidget(),
             // Points Tracker
@@ -224,7 +245,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       fontFamily: 'Bold',
                     ),
                     TextWidget(
-                      text: '$_userPoints Points',
+                      text: '${userPoints} Points',
                       fontSize: fontSize + 2,
                       color: sunshineYellow,
                       isBold: true,
@@ -425,6 +446,8 @@ class _AccountScreenState extends State<AccountScreen> {
           ],
         ),
       ),
+    );
+      },
     );
   }
 }

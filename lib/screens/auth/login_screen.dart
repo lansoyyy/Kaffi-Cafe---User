@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kaffi_cafe/screens/home_screen.dart';
 import 'package:kaffi_cafe/screens/auth/signup_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
@@ -18,8 +20,11 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _resetEmailController = TextEditingController();
 
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  void _handleLogin() {
+  void _handleLogin() async {
     // Basic validation
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -37,26 +42,99 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Placeholder for authentication logic (e.g., Firebase, Auth0)
-    // For demo, assume login is successful if email and password are non-empty
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: TextWidget(
-          text: 'Login successful!',
-          fontSize: 16,
-          color: plainWhite,
-          fontFamily: 'Regular',
-        ),
-        backgroundColor: bayanihanBlue,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    setState(() {
+      _isLoading = true;
+    });
 
-    // Navigate to HomeScreen
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-    );
+    try {
+      // Firebase Authentication
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      // Update last login timestamp in Firestore
+      await _firestore.collection('users').doc(userCredential.user!.uid).update({
+        'lastLogin': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: TextWidget(
+              text: 'Login successful!',
+              fontSize: 16,
+              color: plainWhite,
+              fontFamily: 'Regular',
+            ),
+            backgroundColor: bayanihanBlue,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Navigate to HomeScreen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'An error occurred during login';
+
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'No user found with this email';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Wrong password provided';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'user-disabled':
+          errorMessage = 'This account has been disabled';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later';
+          break;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: TextWidget(
+              text: errorMessage,
+              fontSize: 16,
+              color: plainWhite,
+              fontFamily: 'Regular',
+            ),
+            backgroundColor: festiveRed,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: TextWidget(
+              text: 'An unexpected error occurred',
+              fontSize: 16,
+              color: plainWhite,
+              fontFamily: 'Regular',
+            ),
+            backgroundColor: festiveRed,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _handleSignUp() {
@@ -151,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             ButtonWidget(
               label: 'Send Reset Link',
-              onPressed: () {
+              onPressed: () async {
                 if (_resetEmailController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -168,22 +246,75 @@ class _LoginScreenState extends State<LoginScreen> {
                   return;
                 }
 
-                // Placeholder for sending reset link (e.g., Firebase, Auth0)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: TextWidget(
-                      text:
-                          'Password reset link sent to ${_resetEmailController.text}',
-                      fontSize: 16,
-                      color: plainWhite,
-                      fontFamily: 'Regular',
-                    ),
-                    backgroundColor: bayanihanBlue,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-                Navigator.of(context).pop();
-                _resetEmailController.clear();
+                // Firebase password reset
+                try {
+                  await _auth.sendPasswordResetEmail(
+                    email: _resetEmailController.text.trim(),
+                  );
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: TextWidget(
+                          text:
+                              'Password reset link sent to ${_resetEmailController.text}',
+                          fontSize: 16,
+                          color: plainWhite,
+                          fontFamily: 'Regular',
+                        ),
+                        backgroundColor: bayanihanBlue,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                    Navigator.of(context).pop();
+                    _resetEmailController.clear();
+                  }
+                } on FirebaseAuthException catch (e) {
+                  String errorMessage = 'Failed to send reset email';
+
+                  switch (e.code) {
+                    case 'user-not-found':
+                      errorMessage = 'No user found with this email';
+                      break;
+                    case 'invalid-email':
+                      errorMessage = 'Invalid email address';
+                      break;
+                    case 'too-many-requests':
+                      errorMessage =
+                          'Too many requests. Please try again later';
+                      break;
+                  }
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: TextWidget(
+                          text: errorMessage,
+                          fontSize: 16,
+                          color: plainWhite,
+                          fontFamily: 'Regular',
+                        ),
+                        backgroundColor: festiveRed,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: TextWidget(
+                          text: 'An unexpected error occurred',
+                          fontSize: 16,
+                          color: plainWhite,
+                          fontFamily: 'Regular',
+                        ),
+                        backgroundColor: festiveRed,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                }
               },
               color: bayanihanBlue,
               textColor: plainWhite,
@@ -347,16 +478,31 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
               // Login Button
               Center(
-                child: ButtonWidget(
-                  label: 'Log In',
-                  onPressed: _handleLogin,
-                  color: bayanihanBlue,
-                  textColor: plainWhite,
-                  fontSize: fontSize + 2,
-                  height: 50,
-                  radius: 12,
-                  width: screenWidth * 0.6,
-                ),
+                child: _isLoading
+                    ? Container(
+                        width: screenWidth * 0.6,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: bayanihanBlue.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      )
+                    : ButtonWidget(
+                        label: 'Log In',
+                        onPressed: _handleLogin,
+                        color: bayanihanBlue,
+                        textColor: plainWhite,
+                        fontSize: fontSize + 2,
+                        height: 50,
+                        radius: 12,
+                        width: screenWidth * 0.6,
+                      ),
               ),
               const SizedBox(height: 12),
               // Sign Up Button

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kaffi_cafe/screens/auth/login_screen.dart';
 
 logout(BuildContext context, Widget navigationRoute) {
-  final box = GetStorage();
-
   return showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -18,21 +16,36 @@ logout(BuildContext context, Widget navigationRoute) {
             ),
             actions: <Widget>[
               MaterialButton(
-                onPressed: () => Navigator.of(context).pop(true),
+                onPressed: () => Navigator.of(context).pop(),
                 child: const Text(
-                  'Close',
+                  'Cancel',
                   style: TextStyle(
                       fontFamily: 'Regular', fontWeight: FontWeight.bold),
                 ),
               ),
               MaterialButton(
                 onPressed: () async {
-                  box.erase();
-                  // Get.off(LandingScreen(),
-                  //     transition: Transition.circularReveal);
+                  try {
+                    await FirebaseAuth.instance.signOut();
+                    if (context.mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error logging out: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
                 },
                 child: const Text(
-                  'Continue',
+                  'Logout',
                   style: TextStyle(
                       fontFamily: 'Regular', fontWeight: FontWeight.bold),
                 ),
