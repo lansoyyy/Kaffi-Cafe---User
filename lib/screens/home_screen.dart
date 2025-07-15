@@ -23,17 +23,76 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    // Home Screen
-    HomeTab(),
-    MenuTab(),
-    // Order Screen
-    OrderScreen(),
-    // Reward Screen
-    RewardScreen(),
-    // Account Screen
-    AccountScreen(),
-  ];
+  // Cart state
+  final List<Map<String, dynamic>> _cartItems = [];
+  double get _subtotal => _cartItems.fold(
+      0, (sum, item) => sum + (item['price'] * item['quantity']));
+
+  String? _selectedBranch;
+  String? _selectedType;
+
+  void _setBranch(String? branch) {
+    setState(() {
+      _selectedBranch = branch;
+    });
+  }
+
+  void _setType(String? type) {
+    setState(() {
+      _selectedType = type;
+    });
+  }
+
+  void _addToCart(Map<String, dynamic> item, int quantity) {
+    final index =
+        _cartItems.indexWhere((cartItem) => cartItem['name'] == item['name']);
+    setState(() {
+      if (index >= 0) {
+        _cartItems[index]['quantity'] += quantity;
+      } else {
+        _cartItems.add({
+          'name': item['name'],
+          'price': item['price'],
+          'quantity': quantity,
+        });
+      }
+    });
+  }
+
+  void _removeFromCart(Map<String, dynamic> item) {
+    setState(() {
+      _cartItems.remove(item);
+    });
+  }
+
+  void _clearCart() {
+    setState(() {
+      _cartItems.clear();
+      _selectedBranch = null;
+      _selectedType = null;
+    });
+  }
+
+  void _goToMenuTab() {
+    if (_selectedBranch == null || _selectedType == null) {
+      showOrderDialog();
+    } else {
+      setState(() {
+        _selectedIndex = 1;
+      });
+    }
+  }
+
+  void _goToOrderTab() {
+    setState(() {
+      _selectedIndex = 2;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -391,6 +450,42 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> screens = [
+      HomeTab(
+        onBranchSelected: _goToMenuTab,
+        onTypeAndBranchSelected: (type, branch) {
+          setState(() {
+            _selectedType = type;
+            _selectedBranch = branch;
+            _selectedIndex = 1;
+          });
+        },
+        addToCart: _addToCart,
+      ),
+      MenuTab(
+        cartItems: _cartItems,
+        addToCart: _addToCart,
+        removeFromCart: _removeFromCart,
+        clearCart: _clearCart,
+        subtotal: _subtotal,
+        onViewCart: _goToOrderTab,
+        selectedBranch: _selectedBranch,
+        selectedType: _selectedType,
+      ),
+      OrderScreen(
+        cartItems: _cartItems,
+        removeFromCart: _removeFromCart,
+        clearCart: _clearCart,
+        subtotal: _subtotal,
+        selectedBranch: _selectedBranch,
+        setBranch: _setBranch,
+        selectedType: _selectedType,
+        setType: _setType,
+        branches: _branches.map((b) => b['name']!).toList(),
+      ),
+      RewardScreen(),
+      AccountScreen(),
+    ];
     return Scaffold(
       appBar: AppBar(
         foregroundColor: Colors.white,
@@ -412,7 +507,7 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Colors.white,
         ),
       ),
-      body: _screens[_selectedIndex],
+      body: screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -493,7 +588,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: TouchableWidget(
                     onTap: () {
-                      // Handle branch selection
+                      setState(() {
+                        _selectedBranch = branch['name'];
+                        _selectedType = method;
+                      });
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(

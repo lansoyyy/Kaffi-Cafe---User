@@ -7,33 +7,92 @@ import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/divider_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
 import 'package:kaffi_cafe/widgets/touchable_widget.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key});
+  final VoidCallback? onBranchSelected;
+  final void Function(String type, String branch)? onTypeAndBranchSelected;
+  final void Function(Map<String, dynamic> item, int quantity)? addToCart;
+  const HomeTab(
+      {Key? key,
+      this.onBranchSelected,
+      this.onTypeAndBranchSelected,
+      this.addToCart})
+      : super(key: key);
 
   @override
   State<HomeTab> createState() => _HomeTabState();
 }
 
 class _HomeTabState extends State<HomeTab> {
-  // Sample "For You" items
-  final List<Map<String, dynamic>> _forYouItems = [
-    {
-      'name': 'Pumpkin Spice Latte',
-      'price': 89.0,
-      'image': 'https://www.nespresso.com/recipes/images/pumpkin_spice.jpg',
-    },
-    {
-      'name': 'Caramel Macchiato',
-      'price': 79.0,
-      'image': 'https://www.nespresso.com/recipes/images/caramel_macchiato.jpg',
-    },
-    {
-      'name': 'Blueberry Muffin',
-      'price': 59.0,
-      'image': 'https://www.nespresso.com/recipes/images/blueberry_muffin.jpg',
-    },
-  ];
+  IconData _getCategoryIcon(String? category) {
+    switch (category) {
+      case 'Coffee':
+        return Icons.local_cafe;
+      case 'Drinks':
+        return Icons.local_drink;
+      case 'Foods':
+        return Icons.fastfood;
+      default:
+        return Icons.fastfood;
+    }
+  }
+
+  void _showAddToCartDialog(Map<String, dynamic> item) {
+    int quantity = 1;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Add ${item['name']}'),
+          content: Row(
+            children: [
+              IconButton(
+                icon: Icon(Icons.remove),
+                onPressed: () {
+                  if (quantity > 1) {
+                    quantity--;
+                    (context as Element).markNeedsBuild();
+                  }
+                },
+              ),
+              Text('$quantity'),
+              IconButton(
+                icon: Icon(Icons.add),
+                onPressed: () {
+                  quantity++;
+                  (context as Element).markNeedsBuild();
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (widget.addToCart != null) {
+                  widget.addToCart!(item, quantity);
+                }
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${item['name']} added to cart'),
+                  ),
+                );
+              },
+              child: Text('Add to Cart'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Add state to track selected type
+  String? _pendingType;
 
   @override
   Widget build(BuildContext context) {
@@ -77,100 +136,140 @@ class _HomeTabState extends State<HomeTab> {
             const SizedBox(height: 10),
             SizedBox(
               height: 180,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _forYouItems.length,
-                itemBuilder: (context, index) {
-                  return Card(
-                    elevation: 1,
-                    child: Container(
-                      height: cardHeight,
-                      width: cardWidth,
-                      decoration: BoxDecoration(
-                        color: Colors.black26,
-                        borderRadius: BorderRadius.circular(15),
-                        image: DecorationImage(
-                          image: NetworkImage(
-                              'https://www.nespresso.ph/media/catalog/category/recipes/morning_coffee/nespresso-recipes-Espresso-Macchiato-by-Nespresso_1.jpg'),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: Stack(
-                          children: [
-                            // Gradient overlay
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              height: gradientHeight,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.transparent,
-                                      jetBlack.withOpacity(0.7),
-                                    ],
-                                  ),
-                                ),
-                              ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('products')
+                    .orderBy('timestamp', descending: true)
+                    .limit(5)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final products = snapshot.data!.docs;
+                  if (products.isEmpty) {
+                    return Center(child: Text('No products found.'));
+                  }
+                  return ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: products.length,
+                    itemBuilder: (context, index) {
+                      final data =
+                          products[index].data() as Map<String, dynamic>;
+                      return TouchableWidget(
+                        onTap: () {
+                          _showAddToCartDialog(data);
+                        },
+                        child: Card(
+                          elevation: 1,
+                          child: Container(
+                            height: cardHeight,
+                            width: cardWidth,
+                            decoration: BoxDecoration(
+                              color: Colors.black26,
+                              borderRadius: BorderRadius.circular(15),
                             ),
-
-                            // Text content
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                  padding, 0, padding, padding),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(15),
+                              child: Stack(
                                 children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          TextWidget(
-                                            text: 'Espresso',
-                                            fontSize: 16,
-                                            fontFamily: 'Medium',
-                                            color: Colors.white,
-                                            maxLines: 1,
-                                          ),
-                                          SizedBox(
-                                            width: 100,
-                                            child: TextWidget(
+                                  // Category icon background
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: bayanihanBlue.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(15),
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          _getCategoryIcon(data['category']),
+                                          size: 60,
+                                          color: bayanihanBlue.withOpacity(0.3),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Gradient overlay
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: gradientHeight,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.transparent,
+                                            jetBlack.withOpacity(0.7),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Text content
+                                  Padding(
+                                    padding: EdgeInsets.fromLTRB(
+                                        padding, 0, padding, padding),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                TextWidget(
+                                                  text:
+                                                      data['name'] ?? 'Product',
+                                                  fontSize: 16,
+                                                  fontFamily: 'Medium',
+                                                  color: Colors.white,
+                                                  maxLines: 1,
+                                                ),
+                                                SizedBox(
+                                                  width: 100,
+                                                  child: TextWidget(
+                                                    text: data['description'] ??
+                                                        'Delicious item',
+                                                    fontSize: 11,
+                                                    fontFamily: 'Regular',
+                                                    color: Colors.white,
+                                                    maxLines: 1,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            TextWidget(
                                               text:
-                                                  'Minim ipsum irure consectetur non sint ullamco.',
-                                              fontSize: 11,
-                                              fontFamily: 'Regular',
-                                              color: Colors.white,
+                                                  '₱${(data['price'] as num?)?.toStringAsFixed(0) ?? '0'}',
+                                              fontSize: 22,
+                                              fontFamily: 'Bold',
+                                              color: sunshineYellow,
                                               maxLines: 1,
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                      TextWidget(
-                                        text: 'P69',
-                                        fontSize: 22,
-                                        fontFamily: 'Bold',
-                                        color: sunshineYellow,
-                                        maxLines: 1,
-                                      ),
-                                    ],
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   );
                 },
               ),
@@ -182,6 +281,9 @@ class _HomeTabState extends State<HomeTab> {
               children: [
                 TouchableWidget(
                   onTap: () {
+                    setState(() {
+                      _pendingType = 'Delivery';
+                    });
                     _showBranchSelectionDialog('Delivery');
                   },
                   child: Card(
@@ -215,6 +317,9 @@ class _HomeTabState extends State<HomeTab> {
                 ),
                 TouchableWidget(
                   onTap: () {
+                    setState(() {
+                      _pendingType = 'Pickup';
+                    });
                     _showBranchSelectionDialog('Pickup');
                   },
                   child: Card(
@@ -267,6 +372,9 @@ class _HomeTabState extends State<HomeTab> {
                             MaterialButton(
                               onPressed: () {
                                 Navigator.of(context).pop(true);
+                                setState(() {
+                                  _pendingType = 'Dine in';
+                                });
                                 _showBranchSelectionDialog('Dine in');
                               },
                               child: const Text(
@@ -534,8 +642,15 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                   child: TouchableWidget(
                     onTap: () {
-                      // Handle branch selection
                       Navigator.pop(context);
+                      if (widget.onTypeAndBranchSelected != null &&
+                          _pendingType != null) {
+                        widget.onTypeAndBranchSelected!(
+                            _pendingType!, branch['name']!);
+                        _pendingType = null;
+                      } else if (widget.onBranchSelected != null) {
+                        widget.onBranchSelected!();
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: TextWidget(

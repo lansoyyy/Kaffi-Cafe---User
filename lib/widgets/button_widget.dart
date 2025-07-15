@@ -4,7 +4,7 @@ import 'package:kaffi_cafe/widgets/text_widget.dart';
 
 class ButtonWidget extends StatelessWidget {
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final double? width;
   final double? fontSize;
   final double? height;

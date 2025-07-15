@@ -54,7 +54,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       // Update last login timestamp in Firestore
-      await _firestore.collection('users').doc(userCredential.user!.uid).update({
+      await _firestore
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .update({
         'lastLogin': FieldValue.serverTimestamp(),
       });
 
@@ -339,187 +342,189 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Padding(
         padding: EdgeInsets.symmetric(horizontal: padding, vertical: 12.0),
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Center(
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  height: 150,
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Email Field
-              TextWidget(
-                text: 'Email',
-                fontSize: 20,
-                color: textBlack,
-                isBold: true,
-                fontFamily: 'Bold',
-                letterSpacing: 1.2,
-              ),
-              const SizedBox(height: 8),
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(15),
-                    color: plainWhite,
-                    boxShadow: [
-                      BoxShadow(
-                        color: bayanihanBlue.withOpacity(0.1),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Center(
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    height: 150,
                   ),
-                  child: TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'Enter your email',
-                      hintStyle: TextStyle(
+                ),
+                const SizedBox(height: 12),
+                // Email Field
+                TextWidget(
+                  text: 'Email',
+                  fontSize: 20,
+                  color: textBlack,
+                  isBold: true,
+                  fontFamily: 'Bold',
+                  letterSpacing: 1.2,
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                      color: plainWhite,
+                      boxShadow: [
+                        BoxShadow(
+                          color: bayanihanBlue.withOpacity(0.1),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Enter your email',
+                        hintStyle: TextStyle(
+                          fontSize: fontSize,
+                          color: charcoalGray.withOpacity(0.6),
+                          fontFamily: 'Regular',
+                        ),
+                      ),
+                      style: TextStyle(
                         fontSize: fontSize,
-                        color: charcoalGray.withOpacity(0.6),
+                        color: textBlack,
                         fontFamily: 'Regular',
                       ),
                     ),
-                    style: TextStyle(
-                      fontSize: fontSize,
-                      color: textBlack,
-                      fontFamily: 'Regular',
-                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              // Password Field
-              TextWidget(
-                text: 'Password',
-                fontSize: 20,
-                color: textBlack,
-                isBold: true,
-                fontFamily: 'Bold',
-                letterSpacing: 1.2,
-              ),
-              const SizedBox(height: 8),
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+                const SizedBox(height: 18),
+                // Password Field
+                TextWidget(
+                  text: 'Password',
+                  fontSize: 20,
+                  color: textBlack,
+                  isBold: true,
+                  fontFamily: 'Bold',
+                  letterSpacing: 1.2,
                 ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  decoration: BoxDecoration(
+                const SizedBox(height: 8),
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
-                    color: plainWhite,
-                    boxShadow: [
-                      BoxShadow(
-                        color: bayanihanBlue.withOpacity(0.1),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
                   ),
-                  child: TextField(
-                    controller: _passwordController,
-                    obscureText: !_isPasswordVisible,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'Enter your password',
-                      hintStyle: TextStyle(
-                        fontSize: fontSize,
-                        color: charcoalGray.withOpacity(0.6),
-                        fontFamily: 'Regular',
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          color: bayanihanBlue,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                      color: plainWhite,
+                      boxShadow: [
+                        BoxShadow(
+                          color: bayanihanBlue.withOpacity(0.1),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _isPasswordVisible = !_isPasswordVisible;
-                          });
-                        },
-                      ),
+                      ],
                     ),
-                    style: TextStyle(
-                      fontSize: fontSize,
-                      color: textBlack,
-                      fontFamily: 'Regular',
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Forgot Password
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: _showForgotPasswordDialog,
-                  child: TextWidget(
-                    text: 'Forgot Password?',
-                    fontSize: fontSize - 1,
-                    color: bayanihanBlue,
-                    isBold: true,
-                    fontFamily: 'Bold',
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Login Button
-              Center(
-                child: _isLoading
-                    ? Container(
-                        width: screenWidth * 0.6,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: bayanihanBlue.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(12),
+                    child: TextField(
+                      controller: _passwordController,
+                      obscureText: !_isPasswordVisible,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Enter your password',
+                        hintStyle: TextStyle(
+                          fontSize: fontSize,
+                          color: charcoalGray.withOpacity(0.6),
+                          fontFamily: 'Regular',
                         ),
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: bayanihanBlue,
                           ),
+                          onPressed: () {
+                            setState(() {
+                              _isPasswordVisible = !_isPasswordVisible;
+                            });
+                          },
                         ),
-                      )
-                    : ButtonWidget(
-                        label: 'Log In',
-                        onPressed: _handleLogin,
-                        color: bayanihanBlue,
-                        textColor: plainWhite,
-                        fontSize: fontSize + 2,
-                        height: 50,
-                        radius: 12,
-                        width: screenWidth * 0.6,
                       ),
-              ),
-              const SizedBox(height: 12),
-              // Sign Up Button
-              Center(
-                child: ButtonWidget(
-                  label: 'Sign Up',
-                  onPressed: _handleSignUp,
-                  color: ashGray,
-                  textColor: textBlack,
-                  fontSize: fontSize + 2,
-                  height: 50,
-                  radius: 12,
-                  width: screenWidth * 0.6,
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        color: textBlack,
+                        fontFamily: 'Regular',
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 30),
-            ],
+                const SizedBox(height: 12),
+                // Forgot Password
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: GestureDetector(
+                    onTap: _showForgotPasswordDialog,
+                    child: TextWidget(
+                      text: 'Forgot Password?',
+                      fontSize: fontSize - 1,
+                      color: bayanihanBlue,
+                      isBold: true,
+                      fontFamily: 'Bold',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Login Button
+                Center(
+                  child: _isLoading
+                      ? Container(
+                          width: screenWidth * 0.6,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: bayanihanBlue.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        )
+                      : ButtonWidget(
+                          label: 'Log In',
+                          onPressed: _handleLogin,
+                          color: bayanihanBlue,
+                          textColor: plainWhite,
+                          fontSize: fontSize + 2,
+                          height: 50,
+                          radius: 12,
+                          width: screenWidth * 0.6,
+                        ),
+                ),
+                const SizedBox(height: 12),
+                // Sign Up Button
+                Center(
+                  child: ButtonWidget(
+                    label: 'Sign Up',
+                    onPressed: _handleSignUp,
+                    color: ashGray,
+                    textColor: textBlack,
+                    fontSize: fontSize + 2,
+                    height: 50,
+                    radius: 12,
+                    width: screenWidth * 0.6,
+                  ),
+                ),
+                const SizedBox(height: 30),
+              ],
+            ),
           ),
         ),
       ),

@@ -18,38 +18,45 @@ class AccountScreen extends StatefulWidget {
 class _AccountScreenState extends State<AccountScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   // Get user data from Firebase Auth
   String get _userName => _auth.currentUser?.displayName ?? 'User';
   String get _userEmail => _auth.currentUser?.email ?? 'No email';
 
-  // Sample order history
-  final List<Map<String, dynamic>> _orderHistory = [
-    {
-      'item': 'Espresso',
-      'date': '2025-07-01',
-      'price': 69.0,
-      'status': 'Completed',
-      'image':
-          'https://static.vecteezy.com/system/resources/thumbnails/012/025/024/small_2x/coffee-banner-ads-retro-brown-style-with-latte-and-coffee-beans-3d-realistic-simple-vector.jpg',
-    },
-    {
-      'item': 'Cappuccino',
-      'date': '2025-06-30',
-      'price': 89.0,
-      'status': 'Completed',
-      'image':
-          'https://static.vecteezy.com/system/resources/thumbnails/012/025/024/small_2x/coffee-banner-ads-retro-brown-style-with-latte-and-coffee-beans-3d-realistic-simple-vector.jpg',
-    },
-    {
-      'item': 'Croissant',
-      'date': '2025-06-29',
-      'price': 49.0,
-      'status': 'Completed',
-      'image':
-          'https://static.vecteezy.com/system/resources/thumbnails/012/025/024/small_2x/coffee-banner-ads-retro-brown-style-with-latte-and-coffee-beans-3d-realistic-simple-vector.jpg',
-    },
-  ];
+  String _formatDate(Timestamp timestamp) {
+    final date = timestamp.toDate();
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'preparing':
+        return Colors.blue;
+      case 'ready':
+        return Colors.purple;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return charcoalGray;
+    }
+  }
+
+  IconData _getCategoryIcon(String? category) {
+    switch (category) {
+      case 'Coffee':
+        return Icons.local_cafe;
+      case 'Drinks':
+        return Icons.local_drink;
+      case 'Foods':
+        return Icons.fastfood;
+      default:
+        return Icons.fastfood;
+    }
+  }
 
   // Sample FAQs
   final List<Map<String, String>> _faqs = [
@@ -76,7 +83,10 @@ class _AccountScreenState extends State<AccountScreen> {
     final padding = screenWidth * 0.035;
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: _firestore.collection('users').doc(_auth.currentUser?.uid).snapshots(),
+      stream: _firestore
+          .collection('users')
+          .doc(_auth.currentUser?.uid)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -94,7 +104,8 @@ class _AccountScreenState extends State<AccountScreen> {
 
         return SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -204,83 +215,25 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                   ),
                 ),
-            const SizedBox(height: 18),
-            DividerWidget(),
-            // Points Tracker
-            TextWidget(
-              text: 'Points Tracker',
-              fontSize: 20,
-              color: textBlack,
-              isBold: true,
-              fontFamily: 'Bold',
-              letterSpacing: 1.2,
-            ),
-            const SizedBox(height: 12),
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: plainWhite,
-                  boxShadow: [
-                    BoxShadow(
-                      color: bayanihanBlue.withOpacity(0.1),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                const SizedBox(height: 18),
+                DividerWidget(),
+                // Points Tracker
+                TextWidget(
+                  text: 'Points Tracker',
+                  fontSize: 20,
+                  color: textBlack,
+                  isBold: true,
+                  fontFamily: 'Bold',
+                  letterSpacing: 1.2,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextWidget(
-                      text: 'Your Points',
-                      fontSize: fontSize + 2,
-                      color: textBlack,
-                      isBold: true,
-                      fontFamily: 'Bold',
-                    ),
-                    TextWidget(
-                      text: '${userPoints} Points',
-                      fontSize: fontSize + 2,
-                      color: sunshineYellow,
-                      isBold: true,
-                      fontFamily: 'Bold',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            DividerWidget(),
-            // Order History
-            TextWidget(
-              text: 'Order History',
-              fontSize: 20,
-              color: textBlack,
-              isBold: true,
-              fontFamily: 'Bold',
-              letterSpacing: 1.2,
-            ),
-            const SizedBox(height: 12),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _orderHistory.length,
-              itemBuilder: (context, index) {
-                final order = _orderHistory[index];
-                return Card(
+                const SizedBox(height: 12),
+                Card(
                   elevation: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Container(
-                    padding: EdgeInsets.all(padding),
+                    padding: const EdgeInsets.all(16.0),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
                       color: plainWhite,
@@ -293,160 +246,352 @@ class _AccountScreenState extends State<AccountScreen> {
                       ],
                     ),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        ClipRRect(
-                          borderRadius: const BorderRadius.horizontal(
-                            left: Radius.circular(18),
-                          ),
-                          child: Image.network(
-                            order['image'],
-                            width: cardWidth * 0.5,
-                            height: cardWidth * 0.5,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
-                              width: cardWidth * 0.5,
-                              height: cardWidth * 0.5,
-                              color: ashGray,
-                              child: Center(
-                                child: TextWidget(
-                                  text: order['item'][0],
-                                  fontSize: 24,
-                                  color: plainWhite,
-                                  isBold: true,
-                                  fontFamily: 'Bold',
-                                ),
-                              ),
-                            ),
-                          ),
+                        TextWidget(
+                          text: 'Your Points',
+                          fontSize: fontSize + 2,
+                          color: textBlack,
+                          isBold: true,
+                          fontFamily: 'Bold',
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextWidget(
-                                text: order['item'],
-                                fontSize: fontSize + 1,
-                                color: textBlack,
-                                isBold: true,
-                                fontFamily: 'Bold',
-                                maxLines: 1,
-                              ),
-                              const SizedBox(height: 4),
-                              TextWidget(
-                                text: 'Date: ${order['date']}',
-                                fontSize: fontSize - 1,
-                                color: charcoalGray,
-                                fontFamily: 'Regular',
-                              ),
-                              const SizedBox(height: 4),
-                              TextWidget(
-                                text: '₱${order['price'].toStringAsFixed(0)}',
-                                fontSize: fontSize,
-                                color: sunshineYellow,
-                                isBold: true,
-                                fontFamily: 'Bold',
-                              ),
-                              const SizedBox(height: 4),
-                              TextWidget(
-                                text: 'Status: ${order['status']}',
-                                fontSize: fontSize - 1,
-                                color: charcoalGray,
-                                fontFamily: 'Regular',
-                              ),
-                            ],
-                          ),
+                        TextWidget(
+                          text: '${userPoints} Points',
+                          fontSize: fontSize + 2,
+                          color: sunshineYellow,
+                          isBold: true,
+                          fontFamily: 'Bold',
                         ),
                       ],
                     ),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 18),
-            DividerWidget(),
-            // Chatbot FAQs
-            TextWidget(
-              text: 'FAQs',
-              fontSize: 20,
-              color: textBlack,
-              isBold: true,
-              fontFamily: 'Bold',
-              letterSpacing: 1.2,
-            ),
-            const SizedBox(height: 12),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _faqs.length,
-              itemBuilder: (context, index) {
-                final faq = _faqs[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: ExpansionTile(
-                    title: TextWidget(
-                      text: faq['question']!,
-                      fontSize: fontSize,
-                      color: textBlack,
-                      isBold: true,
-                      fontFamily: 'Bold',
-                    ),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 8.0),
-                        child: TextWidget(
-                          text: faq['answer']!,
-                          fontSize: fontSize - 1,
-                          color: charcoalGray,
-                          fontFamily: 'Regular',
-                          maxLines: 5,
+                ),
+                const SizedBox(height: 18),
+                DividerWidget(),
+                // Order History
+                TextWidget(
+                  text: 'Order History',
+                  fontSize: 20,
+                  color: textBlack,
+                  isBold: true,
+                  fontFamily: 'Bold',
+                  letterSpacing: 1.2,
+                ),
+                const SizedBox(height: 12),
+                StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('orders')
+                      .where('userId', isEqualTo: _auth.currentUser?.uid)
+                      .orderBy('timestamp', descending: true)
+                      .limit(10)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final orders = snapshot.data!.docs;
+                    if (orders.isEmpty) {
+                      return Center(
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.shopping_bag_outlined,
+                              size: 60,
+                              color: charcoalGray,
+                            ),
+                            const SizedBox(height: 16),
+                            TextWidget(
+                              text: 'No orders yet',
+                              fontSize: fontSize + 2,
+                              color: charcoalGray,
+                              fontFamily: 'Regular',
+                            ),
+                            const SizedBox(height: 8),
+                            TextWidget(
+                              text: 'Your order history will appear here',
+                              fontSize: fontSize - 1,
+                              color: charcoalGray,
+                              fontFamily: 'Regular',
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: orders.length,
+                      itemBuilder: (context, index) {
+                        final orderData =
+                            orders[index].data() as Map<String, dynamic>;
+                        final cartItems = List<Map<String, dynamic>>.from(
+                            orderData['cartItems'] ?? []);
+                        final orderId = orders[index].id;
+                        final timestamp = orderData['timestamp'] as Timestamp?;
+                        final status = orderData['status'] ?? 'Pending';
+                        final total = orderData['total'] ?? 0.0;
+                        final branch = orderData['branch'] ?? 'Unknown Branch';
+                        final type = orderData['type'] ?? 'Unknown Type';
+
+                        return Card(
+                          elevation: 4,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Container(
+                            padding: EdgeInsets.all(padding),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              color: plainWhite,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: bayanihanBlue.withOpacity(0.1),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Order header
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    TextWidget(
+                                      text: 'Order #${orderId.substring(0, 8)}',
+                                      fontSize: fontSize + 1,
+                                      color: textBlack,
+                                      isBold: true,
+                                      fontFamily: 'Bold',
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(status)
+                                            .withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: _getStatusColor(status),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: TextWidget(
+                                        text: status,
+                                        fontSize: fontSize - 2,
+                                        color: _getStatusColor(status),
+                                        isBold: true,
+                                        fontFamily: 'Bold',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                // Order details
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.location_on_outlined,
+                                      size: 16,
+                                      color: charcoalGray,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: TextWidget(
+                                        text: '$branch - $type',
+                                        fontSize: fontSize - 1,
+                                        color: charcoalGray,
+                                        fontFamily: 'Regular',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time_outlined,
+                                      size: 16,
+                                      color: charcoalGray,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    TextWidget(
+                                      text: timestamp != null
+                                          ? _formatDate(timestamp)
+                                          : 'Unknown date',
+                                      fontSize: fontSize - 1,
+                                      color: charcoalGray,
+                                      fontFamily: 'Regular',
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                // Items list
+                                ...cartItems
+                                    .map((item) => Padding(
+                                          padding:
+                                              const EdgeInsets.only(bottom: 4),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 32,
+                                                height: 32,
+                                                decoration: BoxDecoration(
+                                                  color: bayanihanBlue
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Center(
+                                                  child: Icon(
+                                                    _getCategoryIcon(
+                                                        item['category']),
+                                                    size: 16,
+                                                    color: bayanihanBlue,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: TextWidget(
+                                                  text:
+                                                      '${item['name']} x${item['quantity']}',
+                                                  fontSize: fontSize - 1,
+                                                  color: textBlack,
+                                                  fontFamily: 'Regular',
+                                                ),
+                                              ),
+                                              TextWidget(
+                                                text:
+                                                    '₱${(item['price'] * item['quantity']).toStringAsFixed(0)}',
+                                                fontSize: fontSize - 1,
+                                                color: sunshineYellow,
+                                                isBold: true,
+                                                fontFamily: 'Bold',
+                                              ),
+                                            ],
+                                          ),
+                                        ))
+                                    .toList(),
+                                const SizedBox(height: 8),
+                                // Total
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    TextWidget(
+                                      text: 'Total',
+                                      fontSize: fontSize + 1,
+                                      color: textBlack,
+                                      isBold: true,
+                                      fontFamily: 'Bold',
+                                    ),
+                                    TextWidget(
+                                      text: '₱${total.toStringAsFixed(0)}',
+                                      fontSize: fontSize + 1,
+                                      color: sunshineYellow,
+                                      isBold: true,
+                                      fontFamily: 'Bold',
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 18),
+                DividerWidget(),
+                // Chatbot FAQs
+                TextWidget(
+                  text: 'FAQs',
+                  fontSize: 20,
+                  color: textBlack,
+                  isBold: true,
+                  fontFamily: 'Bold',
+                  letterSpacing: 1.2,
+                ),
+                const SizedBox(height: 12),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _faqs.length,
+                  itemBuilder: (context, index) {
+                    final faq = _faqs[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: ExpansionTile(
+                        title: TextWidget(
+                          text: faq['question']!,
+                          fontSize: fontSize,
+                          color: textBlack,
+                          isBold: true,
+                          fontFamily: 'Bold',
+                        ),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 8.0),
+                            child: TextWidget(
+                              text: faq['answer']!,
+                              fontSize: fontSize - 1,
+                              color: charcoalGray,
+                              fontFamily: 'Regular',
+                              maxLines: 5,
+                            ),
+                          ),
+                        ],
+                        backgroundColor: cloudWhite,
+                        collapsedBackgroundColor: plainWhite,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(
+                            color: ashGray,
+                            width: 1.0,
+                          ),
+                        ),
+                        collapsedShape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(
+                            color: ashGray,
+                            width: 1.0,
+                          ),
                         ),
                       ),
-                    ],
-                    backgroundColor: cloudWhite,
-                    collapsedBackgroundColor: plainWhite,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: BorderSide(
-                        color: ashGray,
-                        width: 1.0,
-                      ),
-                    ),
-                    collapsedShape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: BorderSide(
-                        color: ashGray,
-                        width: 1.0,
-                      ),
-                    ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 30),
+                // Chatbot Button
+                Center(
+                  child: ButtonWidget(
+                    label: 'Chat with Support',
+                    onPressed: () {
+                      Get.to(ChatFaqSupportScreen(),
+                          transition: Transition.circularReveal);
+                    },
+                    color: bayanihanBlue,
+                    textColor: plainWhite,
+                    fontSize: fontSize + 2,
+                    height: 50,
+                    radius: 12,
+                    width: screenWidth * 0.6,
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 30),
+              ],
             ),
-            const SizedBox(height: 30),
-            // Chatbot Button
-            Center(
-              child: ButtonWidget(
-                label: 'Chat with Support',
-                onPressed: () {
-                  Get.to(ChatFaqSupportScreen(),
-                      transition: Transition.circularReveal);
-                },
-                color: bayanihanBlue,
-                textColor: plainWhite,
-                fontSize: fontSize + 2,
-                height: 50,
-                radius: 12,
-                width: screenWidth * 0.6,
-              ),
-            ),
-            const SizedBox(height: 30),
-          ],
-        ),
-      ),
-    );
+          ),
+        );
       },
     );
   }
