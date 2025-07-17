@@ -148,6 +148,24 @@ class _OrderScreenState extends State<OrderScreen> {
                             'type': widget.selectedType,
                             'branch': widget.selectedBranch,
                           });
+
+                          // Add points to user: 1 point per 10 pesos spent
+                          final user = _auth.currentUser;
+                          if (user != null) {
+                            final pointsToAdd = widget.subtotal ~/ 10;
+                            final userDoc =
+                                _firestore.collection('users').doc(user.uid);
+                            await _firestore
+                                .runTransaction((transaction) async {
+                              final snapshot = await transaction.get(userDoc);
+                              final currentPoints =
+                                  (snapshot.data()?['points'] ?? 0) as int;
+                              transaction.update(userDoc, {
+                                'points': currentPoints + pointsToAdd,
+                              });
+                            });
+                          }
+
                           widget.clearCart();
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
