@@ -10,6 +10,8 @@ import 'package:kaffi_cafe/widgets/textfield_widget.dart';
 import 'package:kaffi_cafe/widgets/touchable_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:paymongo_sdk/paymongo_sdk.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OrderScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -48,6 +50,9 @@ class _OrderScreenState extends State<OrderScreen> {
     }
     return 'Unknown User';
   }
+
+  String get _userName => _auth.currentUser?.displayName ?? 'User';
+  String get _userEmail => _auth.currentUser?.email ?? 'No email';
 
   @override
   Widget build(BuildContext context) {
@@ -128,53 +133,112 @@ class _OrderScreenState extends State<OrderScreen> {
                         widget.selectedType == null
                     ? null
                     : () async {
-                        final _firestore = FirebaseFirestore.instance;
-                        final orderId = DateTime.now().millisecondsSinceEpoch;
                         try {
-                          await _firestore.collection('orders').add({
-                            'orderId': orderId.toString(),
-                            'buyer': _buyerName,
-                            'userId': _auth.currentUser?.uid,
-                            'items': widget.cartItems
-                                .map((item) => {
-                                      'name': item['name'],
-                                      'quantity': item['quantity'],
-                                      'price': item['price'],
-                                    })
-                                .toList(),
-                            'total': widget.subtotal,
-                            'status': 'Pending',
-                            'timestamp': FieldValue.serverTimestamp(),
-                            'type': widget.selectedType,
-                            'branch': widget.selectedBranch,
-                          });
-
-                          // Add points to user: 1 point per 10 pesos spent
-                          final user = _auth.currentUser;
-                          if (user != null) {
-                            final pointsToAdd = widget.subtotal ~/ 10;
-                            final userDoc =
-                                _firestore.collection('users').doc(user.uid);
-                            await _firestore
-                                .runTransaction((transaction) async {
-                              final snapshot = await transaction.get(userDoc);
-                              final currentPoints =
-                                  (snapshot.data()?['points'] ?? 0) as int;
-                              transaction.update(userDoc, {
-                                'points': currentPoints + pointsToAdd,
-                              });
-                            });
-                          }
-
-                          widget.clearCart();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Order placed successfully!')),
+                          final publicSDK = PaymongoClient<PaymongoPublic>(
+                              'pk_test_JhXGeThyqM7XEMjiKeda72YK');
+                          final data = SourceAttributes(
+                            type: 'gcash',
+                            amount: widget.subtotal,
+                            currency: 'PHP',
+                            redirect: const Redirect(
+                              success: "https://example.com/success",
+                              failed: "https://example.com/failed",
+                            ),
+                            billing: PayMongoBilling(
+                                name: _userName,
+                                phone: '09630539422',
+                                email: _userEmail,
+                                address: PayMongoAddress(
+                                    city: 'Quezon City',
+                                    country: 'PH',
+                                    line1: '123 Main St',
+                                    postalCode: '1100')),
                           );
+
+                          final result =
+                              await publicSDK.instance.source.create(data);
+                          final redirectUrl =
+                              result.attributes?.redirect?.checkoutUrl;
+                          if (redirectUrl != null &&
+                              await canLaunch(redirectUrl)) {
+                            await launch(redirectUrl).whenComplete(
+                              () async {
+                                final _firestore = FirebaseFirestore.instance;
+                                final orderId =
+                                    DateTime.now().millisecondsSinceEpoch;
+                                try {
+                                  await _firestore.collection('orders').add({
+                                    'orderId': orderId.toString(),
+                                    'buyer': _buyerName,
+                                    'userId': _auth.currentUser?.uid,
+                                    'items': widget.cartItems
+                                        .map((item) => {
+                                              'name': item['name'],
+                                              'quantity': item['quantity'],
+                                              'price': item['price'],
+                                            })
+                                        .toList(),
+                                    'total': widget.subtotal,
+                                    'status': 'Pending',
+                                    'timestamp': FieldValue.serverTimestamp(),
+                                    'type': widget.selectedType,
+                                    'branch': widget.selectedBranch,
+                                  });
+
+                                  // Add points to user: 1 point per 10 pesos spent
+                                  final user = _auth.currentUser;
+                                  if (user != null) {
+                                    final pointsToAdd = widget.subtotal ~/ 10;
+                                    final userDoc = _firestore
+                                        .collection('users')
+                                        .doc(user.uid);
+                                    await _firestore
+                                        .runTransaction((transaction) async {
+                                      final snapshot =
+                                          await transaction.get(userDoc);
+                                      final currentPoints =
+                                          (snapshot.data()?['points'] ?? 0)
+                                              as int;
+                                      transaction.update(userDoc, {
+                                        'points': currentPoints + pointsToAdd,
+                                      });
+                                    });
+                                  }
+
+                                  widget.clearCart();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text('Order placed successfully!')),
+                                  );
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text('Failed to place order: $e')),
+                                  );
+                                }
+                              },
+                            );
+                            // Immediately show success screen after launching payment page
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content:
+                                      Text('Could not launch payment page')),
+                            );
+                          }
                         } catch (e) {
+                          String errorMsg = 'Payment error: ';
+                          if (e is PaymongoError) {
+                            print('PayMongo error: $e');
+                            errorMsg += e.toString();
+                          } else {
+                            print('PayMongo error: $e');
+                            errorMsg += e.toString();
+                          }
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('Failed to place order: $e')),
+                            SnackBar(content: Text(errorMsg)),
                           );
                         }
                       },
