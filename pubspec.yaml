@@ -49,6 +49,7 @@ dependencies:
   paymongo_sdk: ^1.7.0
   http:
   url_launcher:
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
