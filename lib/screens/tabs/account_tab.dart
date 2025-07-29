@@ -62,7 +62,7 @@ class _AccountScreenState extends State<AccountScreen> {
   final List<Map<String, String>> _faqs = [
     {
       'question': 'How do I earn points?',
-      'answer': 'Earn 1 point for every ₱10 spent on orders.'
+      'answer': 'Earn 10% of your total order value in points at Kaffi Cafe.'
     },
     {
       'question': 'How can I redeem vouchers?',
