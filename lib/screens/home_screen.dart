@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kaffi_cafe/screens/tabs/account_tab.dart';
@@ -21,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final GetStorage _storage = GetStorage();
   int _selectedIndex = 0;
 
   // Cart state
@@ -74,7 +77,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _goToMenuTab() {
-    if (_selectedBranch == null || _selectedType == null) {
+    if (_storage.read('selectedBranch') == null ||
+        _storage.read('selectedType') == null) {
       showOrderDialog();
     } else {
       setState(() {
@@ -92,109 +96,147 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Load stored branch and type
+    _selectedBranch = _storage.read('selectedBranch');
+    _selectedType = _storage.read('selectedType');
+    // If not set, show dialog to select
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_storage.read('selectedBranch') == null ||
+          _storage.read('selectedType') == null) {
+        showOrderDialog();
+      }
+    });
   }
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    if (index == 1) {
+    if (index == 1 &&
+        (_storage.read('selectedBranch') == null ||
+            _storage.read('selectedType') == null)) {
       showOrderDialog();
     }
   }
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  String get _userName => _auth.currentUser?.displayName ?? 'User';
 
   showOrderDialog() {
     showDialog(
       context: context,
       builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final cardHeight = 110.0;
+        final cardRadius = 18.0;
+        final iconSize = 56.0;
         return Dialog(
+          backgroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           child: Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(
-                  child: TextWidget(
-                    text: 'How would you like to\nget your order?',
-                    fontSize: 18,
-                    fontFamily: 'Bold',
-                    align: TextAlign.center,
-                  ),
+                TextWidget(
+                  text: 'How would you like to get your order?',
+                  fontSize: 18,
+                  fontFamily: 'Bold',
+                  align: TextAlign.center,
+                  color: textBlack,
                 ),
-                SizedBox(
-                  height: 10,
-                ),
-                TouchableWidget(
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showBranchSelectionDialog('Delivery');
-                  },
-                  child: Card(
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(50, 10, 50, 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/images/courier.png',
-                            height: 125,
-                          ),
-                          SizedBox(
-                            height: 10,
-                          ),
-                          TextWidget(
-                            text: 'Delivery',
-                            fontSize: 18,
-                            fontFamily: 'Bold',
-                            color: Colors.black,
-                          ),
-                          SizedBox(
-                            height: 10,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: 20,
-                ),
+                SizedBox(height: 24),
                 TouchableWidget(
                   onTap: () {
                     Navigator.pop(context);
                     _showBranchSelectionDialog('Pickup');
                   },
                   child: Card(
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(50, 10, 50, 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.center,
+                    color: const Color(0xFFE6F0FA),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(cardRadius),
+                    ),
+                    child: Container(
+                      height: cardHeight,
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: Row(
                         children: [
-                          Image.asset(
-                            'assets/images/delivery.png',
-                            height: 125,
+                          Container(
+                            width: iconSize,
+                            height: iconSize,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(iconSize / 2),
+                            ),
+                            child: Image.asset(
+                              'assets/images/delivery.png',
+                              fit: BoxFit.contain,
+                            ),
                           ),
-                          TextWidget(
-                            text: 'Pickup',
-                            fontSize: 18,
-                            fontFamily: 'Bold',
-                            color: Colors.black,
-                          ),
-                          SizedBox(
-                            height: 10,
+                          SizedBox(width: 24),
+                          Expanded(
+                            child: TextWidget(
+                              text: 'SELF PICKUP',
+                              fontSize: 18,
+                              fontFamily: 'Bold',
+                              color: bayanihanBlue,
+                              align: TextAlign.left,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: 20,
+                SizedBox(height: 16),
+                TouchableWidget(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showBranchSelectionDialog('Delivery');
+                  },
+                  child: Card(
+                    color: const Color(0xFFF6F7FB),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(cardRadius),
+                    ),
+                    child: Container(
+                      height: cardHeight,
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: iconSize,
+                            height: iconSize,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(iconSize / 2),
+                            ),
+                            child: Image.asset(
+                              'assets/images/courier.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          SizedBox(width: 24),
+                          Expanded(
+                            child: TextWidget(
+                              text: 'DELIVERY',
+                              fontSize: 18,
+                              fontFamily: 'Bold',
+                              color: bayanihanBlue,
+                              align: TextAlign.left,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
+                SizedBox(height: 16),
                 TouchableWidget(
                   onTap: () {
                     Navigator.pop(context);
@@ -415,25 +457,37 @@ class _HomeScreenState extends State<HomeScreen> {
                             ));
                   },
                   child: Card(
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(50, 10, 50, 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.center,
+                    color: const Color(0xFFF6F7FB),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(cardRadius),
+                    ),
+                    child: Container(
+                      height: cardHeight,
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: Row(
                         children: [
-                          Image.asset(
-                            'assets/images/salad.png',
-                            height: 125,
+                          Container(
+                            width: iconSize,
+                            height: iconSize,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(iconSize / 2),
+                            ),
+                            child: Image.asset(
+                              'assets/images/salad.png',
+                              fit: BoxFit.contain,
+                            ),
                           ),
-                          TextWidget(
-                            text: 'Dine In',
-                            fontSize: 18,
-                            fontFamily: 'Bold',
-                            color: Colors.black,
-                          ),
-                          SizedBox(
-                            height: 10,
+                          SizedBox(width: 24),
+                          Expanded(
+                            child: TextWidget(
+                              text: 'DINE IN',
+                              fontSize: 18,
+                              fontFamily: 'Bold',
+                              color: bayanihanBlue,
+                              align: TextAlign.left,
+                            ),
                           ),
                         ],
                       ),
@@ -501,7 +555,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
         title: TextWidget(
-          text: 'Kaffi Cafe',
+          text: "Good Day ${_userName.split(' ')[0]}!",
           fontSize: 24,
           fontFamily: 'Bold',
           color: Colors.white,
@@ -591,6 +645,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() {
                         _selectedBranch = branch['name'];
                         _selectedType = method;
+                        // Store selection in GetStorage
+                        _storage.write('selectedBranch', _selectedBranch);
+                        _storage.write('selectedType', _selectedType);
                       });
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(

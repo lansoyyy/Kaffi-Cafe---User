@@ -105,115 +105,9 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
               ),
               const SizedBox(height: 12),
               DividerWidget(),
-              // Date Selection
+              // Seat Selection (tables only)
               TextWidget(
-                text: 'Select Date',
-                fontSize: 20,
-                color: textBlack,
-                isBold: true,
-                fontFamily: 'Bold',
-                letterSpacing: 1.2,
-              ),
-              const SizedBox(height: 12),
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(15),
-                    color: plainWhite,
-                    boxShadow: [
-                      BoxShadow(
-                        color: bayanihanBlue.withOpacity(0.1),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextWidget(
-                        text:
-                            '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                        fontSize: fontSize + 1,
-                        color: textBlack,
-                        isBold: true,
-                        fontFamily: 'Bold',
-                      ),
-                      ButtonWidget(
-                        label: 'Pick Date',
-                        onPressed: () => _selectDate(context),
-                        color: bayanihanBlue,
-                        textColor: plainWhite,
-                        fontSize: fontSize,
-                        height: 40,
-                        radius: 12,
-                        width: 100,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              DividerWidget(),
-              // Time Selection
-              TextWidget(
-                text: 'Select Time',
-                fontSize: 20,
-                color: textBlack,
-                isBold: true,
-                fontFamily: 'Bold',
-                letterSpacing: 1.2,
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: _timeSlots.map((time) {
-                  final isSelected = _selectedTime == time;
-                  return ChoiceChip(
-                    showCheckmark: false,
-                    label: TextWidget(
-                      text: time,
-                      fontSize: fontSize,
-                      color: isSelected ? plainWhite : textBlack,
-                      isBold: isSelected,
-                      fontFamily: 'Regular',
-                    ),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _selectedTime = time;
-                          _selectedSeat = null; // Reset seat when time changes
-                        });
-                      }
-                    },
-                    backgroundColor: cloudWhite,
-                    selectedColor: bayanihanBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: BorderSide(
-                        color: isSelected ? bayanihanBlue : ashGray,
-                        width: 1.0,
-                      ),
-                    ),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    elevation: isSelected ? 3 : 0,
-                    pressElevation: 5,
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 18),
-              DividerWidget(),
-              // Seat Selection
-              TextWidget(
-                text: 'Select Seat',
+                text: 'Select Table',
                 fontSize: 20,
                 color: textBlack,
                 isBold: true,
@@ -233,6 +127,9 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                 itemCount: _availableSeats.length,
                 itemBuilder: (context, index) {
                   final seat = _availableSeats[index];
+                  final isTable =
+                      seat['seat'].toString().toLowerCase().contains('table');
+                  if (!isTable) return const SizedBox.shrink();
                   final isSelected = _selectedSeat == seat['seat'];
                   final isAvailable = seat['available'];
                   return Card(
@@ -241,7 +138,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: InkWell(
-                      onTap: isAvailable && _selectedTime != null
+                      onTap: isAvailable
                           ? () {
                               setState(() {
                                 _selectedSeat = seat['seat'];
@@ -299,95 +196,208 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                   );
                 },
               ),
-              const SizedBox(height: 18),
-              DividerWidget(),
-              // Number of Guests
-              TextWidget(
-                text: 'Number of Guests',
-                fontSize: 20,
-                color: textBlack,
-                isBold: true,
-                fontFamily: 'Bold',
-                letterSpacing: 1.2,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  ButtonWidget(
-                    label: '-',
-                    onPressed: () {
-                      setState(() {
-                        if (_numberOfGuests > 1) _numberOfGuests--;
-                      });
-                    },
-                    color: ashGray,
-                    textColor: textBlack,
-                    fontSize: fontSize,
-                    height: 36,
-                    width: 50,
-                    radius: 10,
-                  ),
-                  const SizedBox(width: 12),
-                  TextWidget(
-                    text:
-                        '$_numberOfGuests Guest${_numberOfGuests > 1 ? 's' : ''}',
-                    fontSize: fontSize + 1,
-                    color: textBlack,
-                    fontFamily: 'Regular',
-                  ),
-                  const SizedBox(width: 12),
-                  ButtonWidget(
-                    label: '+',
-                    onPressed: () {
-                      setState(() {
-                        _numberOfGuests++;
-                      });
-                    },
-                    color: bayanihanBlue,
-                    textColor: plainWhite,
-                    fontSize: fontSize,
-                    height: 36,
-                    width: 50,
-                    radius: 10,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              // Confirm Reservation Button
-              Center(
-                child: ButtonWidget(
-                  label: 'Confirm Reservation',
-                  onPressed: _selectedTime != null && _selectedSeat != null
-                      ? () {
-                          // Handle reservation confirmation
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: TextWidget(
-                                text:
-                                    'Reservation confirmed for $_selectedSeat at $_selectedTime on ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                                fontSize: fontSize - 1,
-                                color: plainWhite,
-                                fontFamily: 'Regular',
-                              ),
-                              backgroundColor: bayanihanBlue,
-                              duration: const Duration(seconds: 3),
+              // Show remaining fields only after table is selected
+              if (_selectedSeat != null)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 18),
+                    DividerWidget(),
+                    // Date Selection
+                    TextWidget(
+                      text: 'Select Date',
+                      fontSize: 20,
+                      color: textBlack,
+                      isBold: true,
+                      fontFamily: 'Bold',
+                      letterSpacing: 1.2,
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(15),
+                          color: plainWhite,
+                          boxShadow: [
+                            BoxShadow(
+                              color: bayanihanBlue.withOpacity(0.1),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
                             ),
-                          );
-                          Navigator.pop(context);
-                        }
-                      : () {},
-                  color: _selectedTime != null && _selectedSeat != null
-                      ? bayanihanBlue
-                      : ashGray,
-                  textColor: plainWhite,
-                  fontSize: fontSize + 2,
-                  height: 50,
-                  radius: 12,
-                  width: screenWidth * 0.6,
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextWidget(
+                              text:
+                                  '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                              fontSize: fontSize + 1,
+                              color: textBlack,
+                              isBold: true,
+                              fontFamily: 'Bold',
+                            ),
+                            ButtonWidget(
+                              label: 'Pick Date',
+                              onPressed: () => _selectDate(context),
+                              color: bayanihanBlue,
+                              textColor: plainWhite,
+                              fontSize: fontSize,
+                              height: 40,
+                              radius: 12,
+                              width: 100,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    DividerWidget(),
+                    // Time Selection
+                    TextWidget(
+                      text: 'Select Time',
+                      fontSize: 20,
+                      color: textBlack,
+                      isBold: true,
+                      fontFamily: 'Bold',
+                      letterSpacing: 1.2,
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: _timeSlots.map((time) {
+                        final isSelected = _selectedTime == time;
+                        return ChoiceChip(
+                          showCheckmark: false,
+                          label: TextWidget(
+                            text: time,
+                            fontSize: fontSize,
+                            color: isSelected ? plainWhite : textBlack,
+                            isBold: isSelected,
+                            fontFamily: 'Regular',
+                          ),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                _selectedTime = time;
+                              });
+                            }
+                          },
+                          backgroundColor: cloudWhite,
+                          selectedColor: bayanihanBlue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: isSelected ? bayanihanBlue : ashGray,
+                              width: 1.0,
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          elevation: isSelected ? 3 : 0,
+                          pressElevation: 5,
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    DividerWidget(),
+                    // Number of Guests
+                    TextWidget(
+                      text: 'Number of Guests',
+                      fontSize: 20,
+                      color: textBlack,
+                      isBold: true,
+                      fontFamily: 'Bold',
+                      letterSpacing: 1.2,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        ButtonWidget(
+                          label: '-',
+                          onPressed: () {
+                            setState(() {
+                              if (_numberOfGuests > 1) _numberOfGuests--;
+                            });
+                          },
+                          color: ashGray,
+                          textColor: textBlack,
+                          fontSize: fontSize,
+                          height: 36,
+                          width: 50,
+                          radius: 10,
+                        ),
+                        const SizedBox(width: 12),
+                        TextWidget(
+                          text:
+                              '$_numberOfGuests Guest${_numberOfGuests > 1 ? 's' : ''}',
+                          fontSize: fontSize + 1,
+                          color: textBlack,
+                          fontFamily: 'Regular',
+                        ),
+                        const SizedBox(width: 12),
+                        ButtonWidget(
+                          label: '+',
+                          onPressed: () {
+                            setState(() {
+                              _numberOfGuests++;
+                            });
+                          },
+                          color: bayanihanBlue,
+                          textColor: plainWhite,
+                          fontSize: fontSize,
+                          height: 36,
+                          width: 50,
+                          radius: 10,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    // Confirm Reservation Button
+                    Center(
+                      child: ButtonWidget(
+                        label: 'Confirm Reservation',
+                        onPressed:
+                            _selectedTime != null && _selectedSeat != null
+                                ? () {
+                                    // Handle reservation confirmation
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: TextWidget(
+                                          text:
+                                              'Reservation confirmed for $_selectedSeat at $_selectedTime on ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                                          fontSize: fontSize - 1,
+                                          color: plainWhite,
+                                          fontFamily: 'Regular',
+                                        ),
+                                        backgroundColor: bayanihanBlue,
+                                        duration: const Duration(seconds: 3),
+                                      ),
+                                    );
+                                    Navigator.pop(context);
+                                  }
+                                : () {},
+                        color: _selectedTime != null && _selectedSeat != null
+                            ? bayanihanBlue
+                            : ashGray,
+                        textColor: plainWhite,
+                        fontSize: fontSize + 2,
+                        height: 50,
+                        radius: 12,
+                        width: screenWidth * 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 30),
             ],
           ),
         ),

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -25,6 +26,201 @@ class HomeTab extends StatefulWidget {
 }
 
 class _HomeTabState extends State<HomeTab> {
+  // No static recent orders, use Firestore instead
+
+  Widget _buildRecentOrderSection() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final fontSize = screenWidth * 0.034;
+    // TODO: Replace with actual userId from authentication
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Recent orders from Firestore filtered by userId
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('orders')
+              .where('userId',
+                  isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+              .orderBy('timestamp', descending: true)
+              .limit(5)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final orders = snapshot.data!.docs;
+            if (orders.isEmpty) {
+              return Center(
+                child: TextWidget(
+                  text: 'No recent orders found.',
+                  fontSize: fontSize,
+                  color: textBlack,
+                  fontFamily: 'Regular',
+                ),
+              );
+            }
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: orders.length,
+              separatorBuilder: (context, index) => DividerWidget(),
+              itemBuilder: (context, index) {
+                final orderData = orders[index].data() as Map<String, dynamic>;
+                // Get first item in items array for display
+                final items = orderData['items'] as List<dynamic>?;
+                final firstItem = items != null && items.isNotEmpty
+                    ? items[0] as Map<String, dynamic>
+                    : null;
+                final name =
+                    firstItem != null ? firstItem['name'] ?? 'Order' : 'Order';
+                final price = firstItem != null
+                    ? firstItem['price'] ?? orderData['total'] ?? 0
+                    : orderData['total'] ?? 0;
+                final status = orderData['status'] ?? 'Unknown';
+                // Format Firestore timestamp
+                String formattedDate = '';
+                final rawTimestamp = orderData['timestamp'];
+                if (rawTimestamp != null) {
+                  DateTime? dateTime;
+                  if (rawTimestamp is Timestamp) {
+                    dateTime = rawTimestamp.toDate();
+                  } else if (rawTimestamp is String) {
+                    // Try to parse string
+                    dateTime = DateTime.tryParse(rawTimestamp);
+                  }
+                  if (dateTime != null) {
+                    formattedDate =
+                        '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} '
+                        '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+                  }
+                }
+                return Card(
+                  elevation: 2,
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.receipt_long,
+                            color: bayanihanBlue, size: 32),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextWidget(
+                                text: name,
+                                fontSize: fontSize + 2,
+                                color: textBlack,
+                                fontFamily: 'Bold',
+                                maxLines: 1,
+                              ),
+                              TextWidget(
+                                text: formattedDate.isNotEmpty
+                                    ? 'Date: $formattedDate'
+                                    : 'Date: -',
+                                fontSize: fontSize - 1,
+                                color: charcoalGray,
+                                fontFamily: 'Regular',
+                                maxLines: 1,
+                              ),
+                              TextWidget(
+                                text: 'Status: $status',
+                                fontSize: fontSize - 1,
+                                color: status == 'Delivered'
+                                    ? Colors.green
+                                    : status == 'Preparing'
+                                        ? Colors.orange
+                                        : Colors.red,
+                                fontFamily: 'Regular',
+                                maxLines: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Column(
+                          children: [
+                            TextWidget(
+                              text: '₱$price',
+                              fontSize: fontSize + 2,
+                              color: bayanihanBlue,
+                              fontFamily: 'Bold',
+                              maxLines: 1,
+                            ),
+                            SizedBox(height: 6),
+                            ElevatedButton.icon(
+                              icon:
+                                  Icon(Icons.shopping_cart_outlined, size: 18),
+                              label: Text('Reorder',
+                                  style: TextStyle(fontSize: fontSize - 2)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: bayanihanBlue,
+                                foregroundColor: Colors.white,
+                                minimumSize: Size(90, 32),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: () {
+                                final items =
+                                    orderData['items'] as List<dynamic>?;
+                                if (items != null &&
+                                    items.isNotEmpty &&
+                                    widget.addToCart != null) {
+                                  for (var item in items) {
+                                    if (item is Map<String, dynamic>) {
+                                      final itemName = item['name'] ?? 'Order';
+                                      final itemPrice = item['price'] ?? 0;
+                                      final itemQuantity =
+                                          item['quantity'] ?? 1;
+                                      widget.addToCart!(
+                                        {
+                                          'name': itemName,
+                                          'price': itemPrice,
+                                        },
+                                        itemQuantity is int ? itemQuantity : 1,
+                                      );
+                                    }
+                                  }
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content:
+                                          Text('Order items added to cart!'),
+                                      duration: Duration(seconds: 1),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('No items to reorder.'),
+                                      duration: Duration(seconds: 1),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   IconData _getCategoryIcon(String? category) {
     switch (category) {
       case 'Coffee':
@@ -274,6 +470,20 @@ class _HomeTabState extends State<HomeTab> {
                 },
               ),
             ),
+            const SizedBox(height: 16),
+
+            DividerWidget(),
+
+            // 💙 YOUR RECENT ORDER
+            TextWidget(
+              text: 'YOUR RECENT ORDER',
+              fontSize: 22,
+              color: textBlack,
+              isBold: true,
+              fontFamily: 'Bold',
+            ),
+            const SizedBox(height: 10),
+            _buildRecentOrderSection(),
             const SizedBox(height: 16),
             DividerWidget(),
             Row(

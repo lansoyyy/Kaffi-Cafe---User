@@ -123,6 +123,73 @@ class _MenuTabState extends State<MenuTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
+              // Branch & Type Header
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF6F7FB),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on, color: bayanihanBlue, size: 22),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: TextWidget(
+                        text: widget.selectedBranch ?? 'Select Branch',
+                        fontSize: 16,
+                        color: bayanihanBlue,
+                        fontFamily: 'Bold',
+                        maxLines: 2,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: (widget.selectedType == 'Delivery')
+                            ? bayanihanBlue.withOpacity(0.15)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 7),
+                        child: TextWidget(
+                          text: 'Delivery',
+                          fontSize: 15,
+                          color: (widget.selectedType == 'Delivery')
+                              ? bayanihanBlue
+                              : charcoalGray,
+                          fontFamily: 'Bold',
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: (widget.selectedType == 'Pickup')
+                            ? bayanihanBlue
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 7),
+                        child: TextWidget(
+                          text: 'Pickup',
+                          fontSize: 15,
+                          color: (widget.selectedType == 'Pickup')
+                              ? Colors.white
+                              : bayanihanBlue,
+                          fontFamily: 'Bold',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               TextWidget(
                 text: 'Our Menu',
                 fontSize: 22,
@@ -131,7 +198,6 @@ class _MenuTabState extends State<MenuTab> {
                 fontFamily: 'Bold',
               ),
               const SizedBox(height: 10),
-              // Removed branch and type dropdowns here
               DividerWidget(),
               // Category Chips
               Row(
