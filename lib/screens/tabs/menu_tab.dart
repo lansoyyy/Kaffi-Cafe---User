@@ -4,6 +4,7 @@ import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/divider_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:kaffi_cafe/screens/product_details_screen.dart';
 
 class MenuTab extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -52,59 +53,6 @@ class _MenuTabState extends State<MenuTab> {
       default:
         return Icons.fastfood;
     }
-  }
-
-  void _showAddToCartDialog(Map<String, dynamic> item) {
-    int quantity = 1;
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Add ${item['name']}'),
-          content: Row(
-            children: [
-              IconButton(
-                icon: Icon(Icons.remove),
-                onPressed: () {
-                  if (quantity > 1) {
-                    quantity--;
-                    (context as Element).markNeedsBuild();
-                  }
-                },
-              ),
-              Text('$quantity'),
-              IconButton(
-                icon: Icon(Icons.add),
-                onPressed: () {
-                  quantity++;
-                  (context as Element).markNeedsBuild();
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed:
-                  (widget.selectedBranch == null || widget.selectedType == null)
-                      ? null
-                      : () {
-                          widget.addToCart(item, quantity);
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('${item['name']} added to cart')),
-                          );
-                        },
-              child: Text('Add to Cart'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -381,7 +329,17 @@ class _MenuTabState extends State<MenuTab> {
                                                     widget.selectedType == null)
                                                 ? null
                                                 : () {
-                                                    _showAddToCartDialog(data);
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            ProductDetailsScreen(
+                                                          product: data,
+                                                          addToCart:
+                                                              widget.addToCart,
+                                                        ),
+                                                      ),
+                                                    );
                                                   },
                                             color: bayanihanBlue,
                                             textColor: plainWhite,
@@ -481,7 +439,8 @@ class _MenuTabState extends State<MenuTab> {
                   // Checkout button
                   ButtonWidget(
                     label: 'Checkout',
-                    onPressed: (widget.selectedBranch == null || widget.selectedType == null)
+                    onPressed: (widget.selectedBranch == null ||
+                            widget.selectedType == null)
                         ? null
                         : widget.onViewCart,
                     color: bayanihanBlue,
