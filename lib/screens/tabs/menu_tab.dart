@@ -410,15 +410,89 @@ class _MenuTabState extends State<MenuTab> {
         if (widget.cartItems.isNotEmpty)
           Positioned(
             bottom: 20,
+            left: 20,
             right: 20,
-            child: FloatingActionButton.extended(
-              onPressed:
-                  (widget.selectedBranch == null || widget.selectedType == null)
-                      ? null
-                      : widget.onViewCart,
-              label: Text('View Cart (${widget.cartItems.length})'),
-              icon: Icon(Icons.shopping_cart),
-              backgroundColor: bayanihanBlue,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(25),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Cart icon with item count
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: bayanihanBlue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: Icon(
+                            Icons.shopping_cart,
+                            color: bayanihanBlue,
+                            size: 20,
+                          ),
+                        ),
+                        if (widget.cartItems.length > 0)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: TextWidget(
+                                  text: '${widget.cartItems.length}',
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontFamily: 'Bold',
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Price display
+                  Expanded(
+                    child: TextWidget(
+                      text: 'P ${widget.subtotal.toStringAsFixed(2)}',
+                      fontSize: 18,
+                      color: textBlack,
+                      fontFamily: 'Bold',
+                    ),
+                  ),
+                  // Checkout button
+                  ButtonWidget(
+                    label: 'Checkout',
+                    onPressed: (widget.selectedBranch == null || widget.selectedType == null)
+                        ? null
+                        : widget.onViewCart,
+                    color: bayanihanBlue,
+                    textColor: Colors.white,
+                    fontSize: 16,
+                    height: 45,
+                    width: 100,
+                    radius: 22,
+                  ),
+                ],
+              ),
             ),
           ),
       ],

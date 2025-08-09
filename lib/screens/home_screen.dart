@@ -312,7 +312,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       Get.to(
                                                           SeatReservationScreen(),
                                                           transition: Transition
-                                                              .circularReveal);
+                                                              .circularReveal)?.then((result) {
+                                                        if (result == 'goToMenu') {
+                                                          setState(() {
+                                                            _selectedIndex = 1; // Switch to menu tab
+                                                          });
+                                                        }
+                                                      });
                                                     },
                                                     child: Container(
                                                       padding: EdgeInsets.all(

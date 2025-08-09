@@ -3,6 +3,7 @@ import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/divider_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
+import 'package:get_storage/get_storage.dart';
 
 class SeatReservationScreen extends StatefulWidget {
   const SeatReservationScreen({super.key});
@@ -12,6 +13,8 @@ class SeatReservationScreen extends StatefulWidget {
 }
 
 class _SeatReservationScreenState extends State<SeatReservationScreen> {
+  final GetStorage _storage = GetStorage();
+  
   // Sample available seats and time slots
   final List<Map<String, dynamic>> _availableSeats = [
     {'seat': 'Table 1', 'capacity': 2, 'available': true},
@@ -368,7 +371,14 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                         onPressed:
                             _selectedTime != null && _selectedSeat != null
                                 ? () {
-                                    // Handle reservation confirmation
+                                    // Save reservation data
+                                    _storage.write('reservationSeat', _selectedSeat);
+                                    _storage.write('reservationTime', _selectedTime);
+                                    _storage.write('reservationDate', '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}');
+                                    _storage.write('reservationGuests', _numberOfGuests);
+                                    _storage.write('selectedType', 'Dine in');
+                                    
+                                    // Show confirmation
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: TextWidget(
@@ -379,10 +389,12 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                           fontFamily: 'Regular',
                                         ),
                                         backgroundColor: bayanihanBlue,
-                                        duration: const Duration(seconds: 3),
+                                        duration: const Duration(seconds: 2),
                                       ),
                                     );
-                                    Navigator.pop(context);
+                                    
+                                    // Navigate back to home screen with result to switch to menu tab
+                                    Navigator.pop(context, 'goToMenu');
                                   }
                                 : () {},
                         color: _selectedTime != null && _selectedSeat != null
