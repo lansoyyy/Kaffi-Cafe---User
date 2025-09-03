@@ -600,7 +600,9 @@ class _OrderScreenState extends State<OrderScreen> {
       // Prepare order data with validation
       final orderData = {
         'orderRef': orderReference,
+        'orderId': orderReference,
         'customer': _userName.isNotEmpty ? _userName : 'Guest',
+        'buyer': _userName.isNotEmpty ? _userName : 'Guest',
         'status': 'Pending',
         'orderType': widget.selectedType!,
         'branch': widget.selectedBranch!,
