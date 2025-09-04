@@ -272,11 +272,29 @@ class _OrderScreenState extends State<OrderScreen> {
               color: ashGray.withOpacity(0.3),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              Icons.local_cafe,
-              color: bayanihanBlue.withOpacity(0.5),
-              size: 30,
-            ),
+            child: item['image'] != null && item['image'].toString().isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      item['image'],
+                      fit: BoxFit.cover,
+                      width: 60,
+                      height: 60,
+                      errorBuilder: (context, error, stackTrace) {
+                        // Fallback to icon if image fails to load
+                        return Icon(
+                          Icons.local_cafe,
+                          color: bayanihanBlue.withOpacity(0.5),
+                          size: 30,
+                        );
+                      },
+                    ),
+                  )
+                : Icon(
+                    Icons.local_cafe,
+                    color: bayanihanBlue.withOpacity(0.5),
+                    size: 30,
+                  ),
           ),
 
           const SizedBox(width: 12),
@@ -320,53 +338,6 @@ class _OrderScreenState extends State<OrderScreen> {
 
           Column(
             children: [
-              TouchableWidget(
-                onTap: () {
-                  // Show edit dialog for now since OrderScreen doesn't have addToCart
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: TextWidget(
-                        text: 'Edit Item',
-                        fontSize: 16,
-                        fontFamily: 'Bold',
-                        color: textBlack,
-                      ),
-                      content: TextWidget(
-                        text: 'Item editing will be available soon.',
-                        fontSize: 14,
-                        fontFamily: 'Regular',
-                        color: charcoalGray,
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: TextWidget(
-                            text: 'OK',
-                            fontSize: 14,
-                            fontFamily: 'Bold',
-                            color: bayanihanBlue,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: bayanihanBlue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: TextWidget(
-                    text: 'Edit',
-                    fontSize: 12,
-                    fontFamily: 'Bold',
-                    color: bayanihanBlue,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
               TouchableWidget(
                 onTap: () => widget.removeFromCart(item),
                 child: Container(

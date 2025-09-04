@@ -378,13 +378,11 @@ class _HomeTabState extends State<HomeTab> {
                                       decoration: BoxDecoration(
                                         color: bayanihanBlue.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(15),
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          _getCategoryIcon(data['category']),
-                                          size: 60,
-                                          color: bayanihanBlue.withOpacity(0.3),
-                                        ),
+                                        image: DecorationImage(
+                                            image: NetworkImage(
+                                              data['image'],
+                                            ),
+                                            fit: BoxFit.cover),
                                       ),
                                     ),
                                   ),

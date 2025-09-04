@@ -309,13 +309,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       // Handle branch selection
                                                       Navigator.pop(context);
                                                       // Reservation here
-                                                      Get.to(
-                                                          SeatReservationScreen(),
-                                                          transition: Transition
-                                                              .circularReveal)?.then((result) {
-                                                        if (result == 'goToMenu') {
+                                                      Get.to(SeatReservationScreen(),
+                                                              transition: Transition
+                                                                  .circularReveal)
+                                                          ?.then((result) {
+                                                        if (result ==
+                                                            'goToMenu') {
                                                           setState(() {
-                                                            _selectedIndex = 1; // Switch to menu tab
+                                                            _selectedIndex =
+                                                                1; // Switch to menu tab
                                                           });
                                                         }
                                                       });
@@ -560,6 +562,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+        automaticallyImplyLeading: false,
         title: TextWidget(
           text: "Good Day ${_userName.split(' ')[0]}!",
           fontSize: 24,

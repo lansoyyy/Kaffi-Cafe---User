@@ -38,7 +38,14 @@ class MenuTab extends StatefulWidget {
 }
 
 class _MenuTabState extends State<MenuTab> {
-  final List<String> _categories = ['All', 'Coffee', 'Drinks', 'Foods'];
+  final List<String> _categories = [
+    'All',
+    'Coffee',
+    'Non-Coffee Drinks',
+    'Pastries',
+    'Sandwiches',
+    'Add-ons'
+  ];
   String _selectedCategory = 'All';
   final List<String> _types = ['Dine in', 'Pickup', 'Delivery'];
 
@@ -46,12 +53,16 @@ class _MenuTabState extends State<MenuTab> {
     switch (category) {
       case 'Coffee':
         return Icons.local_cafe;
-      case 'Drinks':
-        return Icons.local_drink;
-      case 'Foods':
-        return Icons.fastfood;
+      case 'Non-Coffee Drinks':
+        return Icons.local_bar;
+      case 'Pastries':
+        return Icons.cookie;
+      case 'Sandwiches':
+        return Icons.lunch_dining;
+      case 'Add-ons':
+        return Icons.add_circle_outline;
       default:
-        return Icons.fastfood;
+        return Icons.restaurant_menu;
     }
   }
 
@@ -148,45 +159,48 @@ class _MenuTabState extends State<MenuTab> {
               const SizedBox(height: 10),
               DividerWidget(),
               // Category Chips
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: _categories.map((category) {
-                  final isSelected = _selectedCategory == category;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: ChoiceChip(
-                      showCheckmark: false,
-                      label: TextWidget(
-                        text: category,
-                        fontSize: 14,
-                        color: isSelected ? plainWhite : textBlack,
-                        isBold: isSelected,
-                        fontFamily: 'Regular',
-                      ),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        if (selected) {
-                          setState(() {
-                            _selectedCategory = category;
-                          });
-                        }
-                      },
-                      backgroundColor: cloudWhite,
-                      selectedColor: bayanihanBlue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(7.5),
-                        side: BorderSide(
-                          color: isSelected ? bayanihanBlue : ashGray,
-                          width: 0.5,
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: _categories.map((category) {
+                    final isSelected = _selectedCategory == category;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: ChoiceChip(
+                        showCheckmark: false,
+                        label: TextWidget(
+                          text: category,
+                          fontSize: 14,
+                          color: isSelected ? plainWhite : textBlack,
+                          isBold: isSelected,
+                          fontFamily: 'Regular',
                         ),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() {
+                              _selectedCategory = category;
+                            });
+                          }
+                        },
+                        backgroundColor: cloudWhite,
+                        selectedColor: bayanihanBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(7.5),
+                          side: BorderSide(
+                            color: isSelected ? bayanihanBlue : ashGray,
+                            width: 0.5,
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12.5, vertical: 5),
+                        elevation: isSelected ? 1 : 0,
+                        pressElevation: 1,
                       ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12.5, vertical: 5),
-                      elevation: isSelected ? 1 : 0,
-                      pressElevation: 1,
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
               const SizedBox(height: 10),
               // Menu Grid from Firestore
