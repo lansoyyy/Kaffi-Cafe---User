@@ -7,6 +7,13 @@ import 'package:kaffi_cafe/widgets/touchable_widget.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:paymongo_sdk/paymongo_sdk.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:math';
+import 'package:crypto/crypto.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:kaffi_cafe/utils/keys.dart';
 
 class OrderScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -44,6 +51,7 @@ class _OrderScreenState extends State<OrderScreen> {
   int _pointsToEarn = 0;
 
   String get _userName => _auth.currentUser?.displayName ?? 'User';
+  String get _userEmail => _auth.currentUser?.email ?? 'user@example.com';
 
   @override
   Widget build(BuildContext context) {
@@ -583,93 +591,328 @@ class _OrderScreenState extends State<OrderScreen> {
         return;
       }
 
-      // Show loading indicator
+      // Handle delivery orders with PayMongo payment
+      if (widget.selectedType == 'Delivery') {
+        final paymentType = await _showPaymentMethodDialog();
+        if (paymentType == null) return; // User cancelled
+
+        try {
+          final publicSDK = PaymongoClient<PaymongoPublic>(paymongoPublicKey);
+          final data = SourceAttributes(
+            type: paymentType, // 'gcash' or 'card'
+            amount:
+                (widget.subtotal * 100).toDouble(), // PayMongo uses centavos
+            currency: 'PHP',
+            redirect: const Redirect(
+              success: "https://example.com/success",
+              failed: "https://example.com/failed",
+            ),
+            billing: PayMongoBilling(
+                name: _userName,
+                phone: '09630539422',
+                email: _userEmail,
+                address: PayMongoAddress(
+                    city: 'Quezon City',
+                    country: 'PH',
+                    line1: '123 Main St',
+                    postalCode: '1100')),
+          );
+
+          final result = await publicSDK.instance.source.create(data);
+          final redirectUrl = result.attributes?.redirect?.checkoutUrl;
+
+          if (redirectUrl != null &&
+              await canLaunchUrl(Uri.parse(redirectUrl))) {
+            // Launch payment page and handle result
+            await launchUrl(Uri.parse(redirectUrl)).whenComplete(() async {
+              // After payment, create order in Firestore
+              await _createOrderInFirestore(paymentType);
+
+              // For delivery orders, integrate with Lalamove
+              // await _createLalamoveOrder();
+
+              // Clear cart and show success
+              widget.clearCart();
+
+              // Navigate to confirmation screen
+              _navigateToConfirmationScreen();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Order placed successfully!')),
+              );
+            });
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not launch payment page')),
+            );
+          }
+        } catch (e) {
+          String errorMsg = 'Payment error: ';
+          if (e is PaymongoError) {
+            print('PayMongo error: $e');
+            errorMsg += e.toString();
+          } else {
+            print('PayMongo error: $e');
+            errorMsg += e.toString();
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMsg)),
+          );
+        }
+      } else {
+        // For pickup orders, proceed directly
+        await _createOrderInFirestore('Cash');
+
+        // Clear cart and show success
+        widget.clearCart();
+
+        // Navigate to confirmation screen
+        _navigateToConfirmationScreen();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order placed successfully!')),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Placing your order...')),
+        SnackBar(content: Text('Failed to place order: $e')),
       );
+    }
+  }
 
-      // Generate order reference
-      final orderId = DateTime.now().millisecondsSinceEpoch;
-      final orderReference = 'CA-${orderId.toString().substring(7)}';
+  // Helper method to show payment method dialog
+  Future<String?> _showPaymentMethodDialog() async {
+    return showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: TextWidget(
+            text: 'Select Payment Method',
+            fontSize: 18,
+            fontFamily: 'Bold',
+            color: textBlack,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: TextWidget(
+                  text: 'GCash',
+                  fontSize: 16,
+                  fontFamily: 'Regular',
+                  color: textBlack,
+                ),
+                onTap: () => Navigator.pop(context, 'gcash'),
+              ),
+              ListTile(
+                title: TextWidget(
+                  text: 'Credit/Debit Card',
+                  fontSize: 16,
+                  fontFamily: 'Regular',
+                  color: textBlack,
+                ),
+                onTap: () => Navigator.pop(context, 'card'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-      // Calculate totals
-      final subtotal = widget.subtotal;
-      final deliveryFee = widget.selectedType == 'Delivery' ? 50.0 : 0.0;
-      final total = subtotal + deliveryFee - _discount;
+  // Helper method to create order in Firestore
+  Future<void> _createOrderInFirestore(String paymentMethod) async {
+    final _firestore = FirebaseFirestore.instance;
+    final user = _auth.currentUser;
 
-      // Prepare order data with validation
-      final orderData = {
-        'orderRef': orderReference,
-        'orderId': orderReference,
-        'customer': _userName.isNotEmpty ? _userName : 'Guest',
-        'buyer': _userName.isNotEmpty ? _userName : 'Guest',
-        'status': 'Pending',
-        'orderType': widget.selectedType!,
-        'branch': widget.selectedBranch!,
-        'total': total,
-        'timestamp': FieldValue.serverTimestamp(),
-        // Add cart items as a sub-collection or array if needed
-        'items': widget.cartItems
-            .map((item) => {
-                  'name': item['name'],
-                  'price': item['price'],
-                  'quantity': item['quantity'],
-                  'customizations': item['customizations'] ?? {},
-                })
-            .toList(),
-      };
+    // Generate order reference
+    final orderId = DateTime.now().millisecondsSinceEpoch;
+    final orderReference = 'CA-${orderId.toString().substring(7)}';
 
-      // Add order to Firestore
-      await _firestore.collection('orders').add(orderData);
+    // Calculate totals
+    final subtotal = widget.subtotal;
+    final deliveryFee = widget.selectedType == 'Delivery' ? 50.0 : 0.0;
+    final total = subtotal + deliveryFee - _discount;
 
-      // Update user points
+    // Generate dynamic pickup time (current time + 15-30 minutes)
+    final now = DateTime.now();
+    final pickupStart = now.add(const Duration(minutes: 15));
+    final pickupEnd = now.add(const Duration(minutes: 30));
+    final pickupTime =
+        '${_formatDate(pickupStart)} - ${_formatTime(pickupEnd)}';
+
+    // Prepare order data
+    final orderData = {
+      'orderRef': orderReference,
+      'orderId': orderReference,
+      'customer': _userName.isNotEmpty ? _userName : 'Guest',
+      'buyer': _userName.isNotEmpty ? _userName : 'Guest',
+      'status': 'Pending',
+      'orderType': widget.selectedType!,
+      'branch': widget.selectedBranch!,
+      'total': total,
+      'paymentMethod': paymentMethod,
+      'timestamp': FieldValue.serverTimestamp(),
+      'items': widget.cartItems
+          .map((item) => {
+                'name': item['name'],
+                'price': item['price'],
+                'quantity': item['quantity'],
+                'customizations': item['customizations'] ?? {},
+              })
+          .toList(),
+    };
+
+    // Add order to Firestore
+    await _firestore.collection('orders').add(orderData);
+
+    // Update user points
+    if (user != null) {
       final userDoc = _firestore.collection('users').doc(user.uid);
+      final pointsToEarn = (total ~/ 10).toInt();
       await _firestore.runTransaction((transaction) async {
         final snapshot = await transaction.get(userDoc);
         final userData = snapshot.data() as Map<String, dynamic>? ?? {};
         final currentPoints = userData['points'] as int? ?? 0;
 
         transaction.set(
-            userDoc,
-            {
-              'points': currentPoints + _pointsToEarn,
-              'lastUpdated': FieldValue.serverTimestamp(),
-            },
-            SetOptions(
-                merge: true)); // Use merge to avoid overwriting existing data
+          userDoc,
+          {
+            'points': currentPoints + pointsToEarn,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
       });
-
-      // Navigate to confirmation screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OrderConfirmationScreen(
-            orderReference: orderReference,
-            customerName: _userName,
-            branch: widget.selectedBranch!,
-            orderMethod: widget.selectedType!,
-            pickupTime: 'August 4, 3:24 PM - 3:39 PM',
-            orderItems: widget.cartItems,
-            totalAmount: total,
-          ),
-        ),
-      );
-
-      widget.clearCart();
-
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Order placed successfully! Reference: $orderReference'),
-          backgroundColor: palmGreen,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to place order: $e')),
-      );
     }
+  }
+
+  // Helper method to create Lalamove order
+  Future<void> _createLalamoveOrder() async {
+    try {
+      // Lalamove API integration (sandbox)
+      final apiKey = lalamoveSandboxApiKey;
+      final apiSecret = lalamoveSandboxApiSecret;
+      final market = lalamoveSandboxMarket;
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      final requestId = _generateRequestId();
+
+      // Placeholder quotationId, sender, recipient
+      final quotationId = lalamoveSampleQuotationId;
+      final sender = {
+        "stopId": lalamoveSampleSenderStopId,
+        "name": _userName,
+        "phone": "11955555555"
+      };
+      final recipients = [
+        {
+          "stopId": lalamoveSampleRecipientStopId,
+          "name": _userName,
+          "phone": "11955555555",
+          "remarks": "Order from Kaffi Cafe"
+        }
+      ];
+      final metadata = {
+        "restaurantOrderId": DateTime.now().millisecondsSinceEpoch.toString(),
+        "restaurantName": "Kaffi Cafe"
+      };
+      final body = {
+        "data": {
+          "quotationId": quotationId,
+          "sender": sender,
+          "recipients": recipients,
+          "isPODEnabled": true,
+          "metadata": metadata
+        }
+      };
+      final bodyJson = json.encode(body);
+      final signatureRaw = '$timestamp\r\nPOST\r\n/v3/orders\r\n$bodyJson';
+      final hmacSha256 = Hmac(sha256, utf8.encode(apiSecret));
+      final signature =
+          base64Encode(hmacSha256.convert(utf8.encode(signatureRaw)).bytes);
+      final authorization = 'hmac $apiKey:$timestamp:$signature';
+
+      final response = await http.post(
+        Uri.parse('$lalamoveSandboxBaseUrl/orders'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authorization,
+          'MARKET': market,
+          'Request-ID': requestId,
+        },
+        body: bodyJson,
+      );
+
+      print('Lalamove response: ${response.statusCode} ${response.body}');
+    } catch (e) {
+      print('Lalamove integration error: $e');
+      // Don't fail the order if Lalamove integration fails
+    }
+  }
+
+  // Helper method to navigate to confirmation screen
+  void _navigateToConfirmationScreen() {
+    // Generate dynamic pickup time (current time + 15-30 minutes)
+    final now = DateTime.now();
+    final pickupStart = now.add(const Duration(minutes: 15));
+    final pickupEnd = now.add(const Duration(minutes: 30));
+    final pickupTime =
+        '${_formatDate(pickupStart)} - ${_formatTime(pickupEnd)}';
+
+    // Calculate totals
+    final subtotal = widget.subtotal;
+    final deliveryFee = widget.selectedType == 'Delivery' ? 50.0 : 0.0;
+    final total = subtotal + deliveryFee - _discount;
+
+    // Navigate to confirmation screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OrderConfirmationScreen(
+          orderReference:
+              'CA-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+          customerName: _userName,
+          branch: widget.selectedBranch!,
+          orderMethod: widget.selectedType!,
+          pickupTime: pickupTime,
+          orderItems: widget.cartItems,
+          totalAmount: total,
+        ),
+      ),
+    );
+  }
+
+  // Helper method to generate request ID
+  String _generateRequestId() {
+    return Random().nextInt(1000000000).toString();
+  }
+
+  // Helper method to format date as "Month Day"
+  String _formatDate(DateTime date) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return '${months[date.month - 1]} ${date.day}';
+  }
+
+  // Helper method to format time as "H:MM AM/PM"
+  String _formatTime(DateTime date) {
+    final hour = date.hour;
+    final minute = date.minute;
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final formattedHour = hour % 12 == 0 ? 12 : hour % 12;
+    final formattedMinute = minute.toString().padLeft(2, '0');
+    return '$formattedHour:$formattedMinute $period';
   }
 }
