@@ -2,6 +2,7 @@ import 'package:auth0_flutter/auth0_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:kaffi_cafe/screens/home_screen.dart';
 import 'package:kaffi_cafe/screens/auth/signup_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
@@ -34,6 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  final box = GetStorage();
 
   void _handleLogin() async {
     // Basic validation
@@ -374,6 +377,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     final credentials = await auth0
                         .webAuthentication(scheme: 'com.algovision.kafficafe')
                         .login(useHTTPS: true);
+                    box.write('user', credentials.user.toMap());
+                    await _firestore
+                        .collection('users')
+                        .doc(credentials.user.toMap()['email'])
+                        .set({
+                      'name':
+                          '${credentials.user.toMap()['given_name']} ${credentials.user.toMap()['family_name']}',
+                      'email': credentials.user.toMap()['email'],
+                      'createdAt': FieldValue.serverTimestamp(),
+                      'points': 0,
+                      'totalOrders': 0,
+                      'lastLogin': FieldValue.serverTimestamp(),
+                    });
 
                     Navigator.pushReplacement(
                       context,

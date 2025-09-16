@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:kaffi_cafe/screens/reservation_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
@@ -26,6 +27,7 @@ class HomeTab extends StatefulWidget {
 }
 
 class _HomeTabState extends State<HomeTab> {
+  final box = GetStorage();
   // No static recent orders, use Firestore instead
 
   Widget _buildRecentOrderSection() {
@@ -40,8 +42,7 @@ class _HomeTabState extends State<HomeTab> {
         StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('orders')
-              .where('userId',
-                  isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+              .where('userId', isEqualTo: box.read('user')?['email'])
               .orderBy('timestamp', descending: true)
               .limit(5)
               .snapshots(),
@@ -489,10 +490,224 @@ class _HomeTabState extends State<HomeTab> {
               children: [
                 TouchableWidget(
                   onTap: () {
-                    setState(() {
-                      _pendingType = 'Delivery';
-                    });
-                    _showBranchSelectionDialog('Delivery');
+                    showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                              title: const Text(
+                                'Seat Reservation',
+                                style: TextStyle(
+                                    fontFamily: 'Bold',
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              content: const Text(
+                                'Do you want to reserve seats?',
+                                style: TextStyle(fontFamily: 'Regular'),
+                              ),
+                              actions: <Widget>[
+                                MaterialButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop(true);
+                                    setState(() {
+                                      _pendingType = 'Dine in';
+                                    });
+                                    _showBranchSelectionDialog('Dine in');
+                                  },
+                                  child: const Text(
+                                    'Close',
+                                    style: TextStyle(
+                                        fontFamily: 'Regular',
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                MaterialButton(
+                                  onPressed: () async {
+                                    Navigator.pop(context);
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) {
+                                        final screenWidth =
+                                            MediaQuery.of(context).size.width;
+                                        final fontSize = screenWidth * 0.036;
+                                        final padding = screenWidth * 0.035;
+
+                                        return AlertDialog(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          backgroundColor: plainWhite,
+                                          title: TextWidget(
+                                            text: 'Select Branch for Dine in',
+                                            fontSize: 20,
+                                            color: textBlack,
+                                            isBold: true,
+                                            fontFamily: 'Bold',
+                                            letterSpacing: 1.2,
+                                          ),
+                                          content: SingleChildScrollView(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: _branches.map((branch) {
+                                                return Card(
+                                                  elevation: 3,
+                                                  margin: const EdgeInsets.only(
+                                                      bottom: 12),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            15),
+                                                  ),
+                                                  child: TouchableWidget(
+                                                    onTap: () {
+                                                      // Handle branch selection
+                                                      Navigator.pop(context);
+                                                      // Reservation here
+                                                      Get.to(
+                                                          SeatReservationScreen(),
+                                                          transition: Transition
+                                                              .circularReveal);
+                                                    },
+                                                    child: Container(
+                                                      padding: EdgeInsets.all(
+                                                          padding),
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(15),
+                                                        color: plainWhite,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: bayanihanBlue
+                                                                .withOpacity(
+                                                                    0.1),
+                                                            blurRadius: 6,
+                                                            offset:
+                                                                const Offset(
+                                                                    0, 2),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          ClipRRect(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        12),
+                                                            child:
+                                                                Image.network(
+                                                              branch['image']!,
+                                                              width:
+                                                                  screenWidth *
+                                                                      0.25,
+                                                              height:
+                                                                  screenWidth *
+                                                                      0.25,
+                                                              fit: BoxFit.cover,
+                                                              errorBuilder:
+                                                                  (context,
+                                                                          error,
+                                                                          stackTrace) =>
+                                                                      Container(
+                                                                width:
+                                                                    screenWidth *
+                                                                        0.25,
+                                                                height:
+                                                                    screenWidth *
+                                                                        0.25,
+                                                                color: ashGray,
+                                                                child: Center(
+                                                                  child:
+                                                                      TextWidget(
+                                                                    text: branch[
+                                                                        'name']![0],
+                                                                    fontSize:
+                                                                        24,
+                                                                    color:
+                                                                        plainWhite,
+                                                                    isBold:
+                                                                        true,
+                                                                    fontFamily:
+                                                                        'Bold',
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              width: 12),
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                TextWidget(
+                                                                  text: branch[
+                                                                      'name']!,
+                                                                  fontSize:
+                                                                      fontSize +
+                                                                          1,
+                                                                  color:
+                                                                      textBlack,
+                                                                  isBold: true,
+                                                                  fontFamily:
+                                                                      'Bold',
+                                                                  maxLines: 1,
+                                                                ),
+                                                                const SizedBox(
+                                                                    height: 6),
+                                                                TextWidget(
+                                                                  text: branch[
+                                                                      'address']!,
+                                                                  fontSize:
+                                                                      fontSize -
+                                                                          1,
+                                                                  color:
+                                                                      charcoalGray,
+                                                                  fontFamily:
+                                                                      'Regular',
+                                                                  maxLines: 2,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              }).toList(),
+                                            ),
+                                          ),
+                                          actions: [
+                                            ButtonWidget(
+                                              label: 'Cancel',
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              color: ashGray,
+                                              textColor: textBlack,
+                                              fontSize: fontSize,
+                                              height: 40,
+                                              radius: 12,
+                                              width: 100,
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                    // Get.off(LandingScreen(),
+                                    //     transition: Transition.circularReveal);
+                                  },
+                                  child: const Text(
+                                    'Continue',
+                                    style: TextStyle(
+                                        fontFamily: 'Regular',
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ));
                   },
                   child: Card(
                     color: Colors.white,
@@ -503,14 +718,11 @@ class _HomeTabState extends State<HomeTab> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Image.asset(
-                            'assets/images/courier.png',
+                            'assets/images/salad.png',
                             height: 125,
                           ),
-                          SizedBox(
-                            height: 10,
-                          ),
                           TextWidget(
-                            text: 'Delivery',
+                            text: 'Dine In',
                             fontSize: 18,
                             fontFamily: 'Bold',
                             color: Colors.black,
@@ -557,242 +769,6 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                 ),
               ],
-            ),
-            SizedBox(
-              height: 10,
-            ),
-            TouchableWidget(
-              onTap: () {
-                showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                          title: const Text(
-                            'Seat Reservation',
-                            style: TextStyle(
-                                fontFamily: 'Bold',
-                                fontWeight: FontWeight.bold),
-                          ),
-                          content: const Text(
-                            'Do you want to reserve seats?',
-                            style: TextStyle(fontFamily: 'Regular'),
-                          ),
-                          actions: <Widget>[
-                            MaterialButton(
-                              onPressed: () {
-                                Navigator.of(context).pop(true);
-                                setState(() {
-                                  _pendingType = 'Dine in';
-                                });
-                                _showBranchSelectionDialog('Dine in');
-                              },
-                              child: const Text(
-                                'Close',
-                                style: TextStyle(
-                                    fontFamily: 'Regular',
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            MaterialButton(
-                              onPressed: () async {
-                                Navigator.pop(context);
-                                showDialog(
-                                  context: context,
-                                  builder: (context) {
-                                    final screenWidth =
-                                        MediaQuery.of(context).size.width;
-                                    final fontSize = screenWidth * 0.036;
-                                    final padding = screenWidth * 0.035;
-
-                                    return AlertDialog(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      backgroundColor: plainWhite,
-                                      title: TextWidget(
-                                        text: 'Select Branch for Dine in',
-                                        fontSize: 20,
-                                        color: textBlack,
-                                        isBold: true,
-                                        fontFamily: 'Bold',
-                                        letterSpacing: 1.2,
-                                      ),
-                                      content: SingleChildScrollView(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: _branches.map((branch) {
-                                            return Card(
-                                              elevation: 3,
-                                              margin: const EdgeInsets.only(
-                                                  bottom: 12),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(15),
-                                              ),
-                                              child: TouchableWidget(
-                                                onTap: () {
-                                                  // Handle branch selection
-                                                  Navigator.pop(context);
-                                                  // Reservation here
-                                                  Get.to(
-                                                      SeatReservationScreen(),
-                                                      transition: Transition
-                                                          .circularReveal);
-                                                },
-                                                child: Container(
-                                                  padding:
-                                                      EdgeInsets.all(padding),
-                                                  decoration: BoxDecoration(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            15),
-                                                    color: plainWhite,
-                                                    boxShadow: [
-                                                      BoxShadow(
-                                                        color: bayanihanBlue
-                                                            .withOpacity(0.1),
-                                                        blurRadius: 6,
-                                                        offset:
-                                                            const Offset(0, 2),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  child: Row(
-                                                    children: [
-                                                      ClipRRect(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(12),
-                                                        child: Image.network(
-                                                          branch['image']!,
-                                                          width: screenWidth *
-                                                              0.25,
-                                                          height: screenWidth *
-                                                              0.25,
-                                                          fit: BoxFit.cover,
-                                                          errorBuilder: (context,
-                                                                  error,
-                                                                  stackTrace) =>
-                                                              Container(
-                                                            width: screenWidth *
-                                                                0.25,
-                                                            height:
-                                                                screenWidth *
-                                                                    0.25,
-                                                            color: ashGray,
-                                                            child: Center(
-                                                              child: TextWidget(
-                                                                text: branch[
-                                                                    'name']![0],
-                                                                fontSize: 24,
-                                                                color:
-                                                                    plainWhite,
-                                                                isBold: true,
-                                                                fontFamily:
-                                                                    'Bold',
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 12),
-                                                      Expanded(
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            TextWidget(
-                                                              text: branch[
-                                                                  'name']!,
-                                                              fontSize:
-                                                                  fontSize + 1,
-                                                              color: textBlack,
-                                                              isBold: true,
-                                                              fontFamily:
-                                                                  'Bold',
-                                                              maxLines: 1,
-                                                            ),
-                                                            const SizedBox(
-                                                                height: 6),
-                                                            TextWidget(
-                                                              text: branch[
-                                                                  'address']!,
-                                                              fontSize:
-                                                                  fontSize - 1,
-                                                              color:
-                                                                  charcoalGray,
-                                                              fontFamily:
-                                                                  'Regular',
-                                                              maxLines: 2,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                        ),
-                                      ),
-                                      actions: [
-                                        ButtonWidget(
-                                          label: 'Cancel',
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                          color: ashGray,
-                                          textColor: textBlack,
-                                          fontSize: fontSize,
-                                          height: 40,
-                                          radius: 12,
-                                          width: 100,
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                                // Get.off(LandingScreen(),
-                                //     transition: Transition.circularReveal);
-                              },
-                              child: const Text(
-                                'Continue',
-                                style: TextStyle(
-                                    fontFamily: 'Regular',
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ));
-              },
-              child: Card(
-                color: Colors.white,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/images/salad.png',
-                          height: 125,
-                        ),
-                        TextWidget(
-                          text: 'Dine In',
-                          fontSize: 18,
-                          fontFamily: 'Bold',
-                          color: Colors.black,
-                        ),
-                        SizedBox(
-                          height: 10,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
             ),
 
             const SizedBox(height: 24),

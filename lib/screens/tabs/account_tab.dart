@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:kaffi_cafe/screens/chatsupport_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
@@ -16,7 +17,6 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Order status filter
@@ -29,10 +29,6 @@ class _AccountScreenState extends State<AccountScreen> {
     'Completed',
     'Cancelled'
   ];
-
-  // Get user data from Firebase Auth
-  String get _userName => _auth.currentUser?.displayName ?? 'User';
-  String get _userEmail => _auth.currentUser?.email ?? 'No email';
 
   String _formatDate(Timestamp timestamp) {
     final date = timestamp.toDate();
@@ -85,6 +81,7 @@ class _AccountScreenState extends State<AccountScreen> {
     },
   ];
 
+  final box = GetStorage();
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -96,7 +93,7 @@ class _AccountScreenState extends State<AccountScreen> {
     return StreamBuilder<DocumentSnapshot>(
       stream: _firestore
           .collection('users')
-          .doc(_auth.currentUser?.uid)
+          .doc(box.read('user')['email'])
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -108,8 +105,8 @@ class _AccountScreenState extends State<AccountScreen> {
         }
 
         final userData = snapshot.data?.data() as Map<String, dynamic>?;
-        final userName = userData?['name'] ?? _userName;
-        final userEmail = userData?['email'] ?? _userEmail;
+        final userName = userData?['name'];
+        final userEmail = userData?['email'];
         final userPoints = userData?['points'] ?? 0;
         final totalOrders = userData?['totalOrders'] ?? 0;
 
@@ -331,7 +328,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 StreamBuilder<QuerySnapshot>(
                   stream: _firestore
                       .collection('orders')
-                      .where('userId', isEqualTo: _auth.currentUser?.uid)
+                      .where('userId', isEqualTo: box.read('user')?['email'])
                       .orderBy('timestamp', descending: true)
                       .limit(10)
                       .snapshots(),

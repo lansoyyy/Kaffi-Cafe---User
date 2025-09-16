@@ -76,20 +76,6 @@ class OrderConfirmationScreen extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.star, color: Colors.amber, size: 16),
-                    const SizedBox(width: 4),
-                    TextWidget(
-                      text: '2 stamps will be credited to your account',
-                      fontSize: 12,
-                      fontFamily: 'Regular',
-                      color: charcoalGray,
-                    ),
-                  ],
-                ),
-
                 TextWidget(
                   text: 'once your order is complete.',
                   fontSize: 12,
@@ -161,7 +147,7 @@ class OrderConfirmationScreen extends StatelessWidget {
 
                 // Go to activity button
                 ButtonWidget(
-                  label: 'GO TO ACTIVITY',
+                  label: 'GO TO ACTIVITYs',
                   onPressed: () {
                     Get.back(); // Go back to home screen
                   },

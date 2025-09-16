@@ -1,3 +1,4 @@
+import 'package:auth0_flutter/auth0_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:kaffi_cafe/screens/order_confirmation_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
@@ -43,15 +44,13 @@ class OrderScreen extends StatefulWidget {
 }
 
 class _OrderScreenState extends State<OrderScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final box = GetStorage();
+
   final GetStorage _storage = GetStorage();
   String _selectedPaymentMethod = 'Cash on Delivery';
   String _voucherCode = '';
   double _discount = 0.0;
   int _pointsToEarn = 0;
-
-  String get _userName => _auth.currentUser?.displayName ?? 'User';
-  String get _userEmail => _auth.currentUser?.email ?? 'user@example.com';
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +372,7 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   Widget _buildPaymentMethodSelector() {
-    final paymentMethods = ['Cash on Delivery', 'GCash', 'Credit/Debit Card'];
+    final paymentMethods = ['Cash on Delivery', 'GCash'];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -554,23 +553,13 @@ class _OrderScreenState extends State<OrderScreen> {
       }
 
       // Ensure user is authenticated
-      final user = _auth.currentUser;
-      if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please log in to place an order')),
-        );
-        return;
-      }
 
       // Handle delivery orders with PayMongo payment
-      if (widget.selectedType == 'Delivery') {
-        final paymentType = await _showPaymentMethodDialog();
-        if (paymentType == null) return; // User cancelled
-
+      if (_selectedPaymentMethod != 'Cash on Delivery') {
         try {
           final publicSDK = PaymongoClient<PaymongoPublic>(paymongoPublicKey);
           final data = SourceAttributes(
-            type: paymentType, // 'gcash' or 'card'
+            type: 'gcash', // 'gcash' or 'card'
             amount:
                 (widget.subtotal * 100).toDouble(), // PayMongo uses centavos
             currency: 'PHP',
@@ -579,9 +568,10 @@ class _OrderScreenState extends State<OrderScreen> {
               failed: "https://example.com/failed",
             ),
             billing: PayMongoBilling(
-                name: _userName,
+                email: box.read('user')?['email'],
                 phone: '09630539422',
-                email: _userEmail,
+                name:
+                    '${box.read('user')?['given_name']} ${box.read('user')?['family_name']}',
                 address: PayMongoAddress(
                     city: 'Quezon City',
                     country: 'PH',
@@ -597,7 +587,7 @@ class _OrderScreenState extends State<OrderScreen> {
             // Launch payment page and handle result
             await launchUrl(Uri.parse(redirectUrl)).whenComplete(() async {
               // After payment, create order in Firestore
-              await _createOrderInFirestore(paymentType);
+              await _createOrderInFirestore('gcash');
 
               // For delivery orders, integrate with Lalamove
               // await _createLalamoveOrder();
@@ -621,7 +611,8 @@ class _OrderScreenState extends State<OrderScreen> {
           String errorMsg = 'Payment error: ';
           if (e is PaymongoError) {
             print('PayMongo error: $e');
-            errorMsg += e.toString();
+            errorMsg +=
+                'Payment service is currently unavailable. Please try again later or use Cash on Delivery.';
           } else {
             print('PayMongo error: $e');
             errorMsg += e.toString();
@@ -677,12 +668,14 @@ class _OrderScreenState extends State<OrderScreen> {
               ),
               ListTile(
                 title: TextWidget(
-                  text: 'Credit/Debit Card',
+                  text: 'Credit/Debit Card (Currently Unavailable)',
                   fontSize: 16,
                   fontFamily: 'Regular',
-                  color: textBlack,
+                  color: Colors.grey,
                 ),
-                onTap: () => Navigator.pop(context, 'card'),
+                onTap: () {
+                  Navigator.pop(context, 'card');
+                },
               ),
             ],
           ),
@@ -694,7 +687,6 @@ class _OrderScreenState extends State<OrderScreen> {
   // Helper method to create order in Firestore
   Future<void> _createOrderInFirestore(String paymentMethod) async {
     final _firestore = FirebaseFirestore.instance;
-    final user = _auth.currentUser;
 
     // Generate order reference
     final orderId = DateTime.now().millisecondsSinceEpoch;
@@ -705,23 +697,19 @@ class _OrderScreenState extends State<OrderScreen> {
     final deliveryFee = widget.selectedType == 'Delivery' ? 50.0 : 0.0;
     final total = subtotal + deliveryFee - _discount;
 
-    // Generate dynamic pickup time (current time + 15-30 minutes)
-    final now = DateTime.now();
-    final pickupStart = now.add(const Duration(minutes: 15));
-    final pickupEnd = now.add(const Duration(minutes: 30));
-    final pickupTime =
-        '${_formatDate(pickupStart)} - ${_formatTime(pickupEnd)}';
-
     // Prepare order data
     final orderData = {
       'orderRef': orderReference,
       'orderId': orderReference,
-      'customer': _userName.isNotEmpty ? _userName : 'Guest',
-      'buyer': _userName.isNotEmpty ? _userName : 'Guest',
+      'customer':
+          '${box.read('user')?['given_name']} ${box.read('user')?['family_name']}',
+      'buyer':
+          '${box.read('user')?['given_name']} ${box.read('user')?['family_name']}',
       'status': 'Pending',
       'orderType': widget.selectedType!,
       'branch': widget.selectedBranch!,
       'total': total,
+      'userId': box.read('user')?['email'],
       'paymentMethod': paymentMethod,
       'timestamp': FieldValue.serverTimestamp(),
       'items': widget.cartItems
@@ -738,87 +726,24 @@ class _OrderScreenState extends State<OrderScreen> {
     await _firestore.collection('orders').add(orderData);
 
     // Update user points
-    if (user != null) {
-      final userDoc = _firestore.collection('users').doc(user.uid);
-      final pointsToEarn = (total ~/ 10).toInt();
-      await _firestore.runTransaction((transaction) async {
-        final snapshot = await transaction.get(userDoc);
-        final userData = snapshot.data() as Map<String, dynamic>? ?? {};
-        final currentPoints = userData['points'] as int? ?? 0;
 
-        transaction.set(
-          userDoc,
-          {
-            'points': currentPoints + pointsToEarn,
-            'lastUpdated': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
-      });
-    }
-  }
+    final userDoc =
+        _firestore.collection('users').doc(box.read('user')?['email']);
+    final pointsToEarn = (total ~/ 10).toInt();
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(userDoc);
+      final userData = snapshot.data() as Map<String, dynamic>? ?? {};
+      final currentPoints = userData['points'] as int? ?? 0;
 
-  // Helper method to create Lalamove order
-  Future<void> _createLalamoveOrder() async {
-    try {
-      // Lalamove API integration (sandbox)
-      final apiKey = lalamoveSandboxApiKey;
-      final apiSecret = lalamoveSandboxApiSecret;
-      final market = lalamoveSandboxMarket;
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final requestId = _generateRequestId();
-
-      // Placeholder quotationId, sender, recipient
-      final quotationId = lalamoveSampleQuotationId;
-      final sender = {
-        "stopId": lalamoveSampleSenderStopId,
-        "name": _userName,
-        "phone": "11955555555"
-      };
-      final recipients = [
+      transaction.set(
+        userDoc,
         {
-          "stopId": lalamoveSampleRecipientStopId,
-          "name": _userName,
-          "phone": "11955555555",
-          "remarks": "Order from Kaffi Cafe"
-        }
-      ];
-      final metadata = {
-        "restaurantOrderId": DateTime.now().millisecondsSinceEpoch.toString(),
-        "restaurantName": "Kaffi Cafe"
-      };
-      final body = {
-        "data": {
-          "quotationId": quotationId,
-          "sender": sender,
-          "recipients": recipients,
-          "isPODEnabled": true,
-          "metadata": metadata
-        }
-      };
-      final bodyJson = json.encode(body);
-      final signatureRaw = '$timestamp\r\nPOST\r\n/v3/orders\r\n$bodyJson';
-      final hmacSha256 = Hmac(sha256, utf8.encode(apiSecret));
-      final signature =
-          base64Encode(hmacSha256.convert(utf8.encode(signatureRaw)).bytes);
-      final authorization = 'hmac $apiKey:$timestamp:$signature';
-
-      final response = await http.post(
-        Uri.parse('$lalamoveSandboxBaseUrl/orders'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': authorization,
-          'MARKET': market,
-          'Request-ID': requestId,
+          'points': currentPoints + pointsToEarn,
+          'lastUpdated': FieldValue.serverTimestamp(),
         },
-        body: bodyJson,
+        SetOptions(merge: true),
       );
-
-      print('Lalamove response: ${response.statusCode} ${response.body}');
-    } catch (e) {
-      print('Lalamove integration error: $e');
-      // Don't fail the order if Lalamove integration fails
-    }
+    });
   }
 
   // Helper method to navigate to confirmation screen
@@ -842,7 +767,8 @@ class _OrderScreenState extends State<OrderScreen> {
         builder: (context) => OrderConfirmationScreen(
           orderReference:
               'CA-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-          customerName: _userName,
+          customerName:
+              '${box.read('user')?['given_name']} ${box.read('user')?['family_name']}',
           branch: widget.selectedBranch!,
           orderMethod: widget.selectedType!,
           pickupTime: pickupTime,
@@ -851,11 +777,6 @@ class _OrderScreenState extends State<OrderScreen> {
         ),
       ),
     );
-  }
-
-  // Helper method to generate request ID
-  String _generateRequestId() {
-    return Random().nextInt(1000000000).toString();
   }
 
   // Helper method to format date as "Month Day"
