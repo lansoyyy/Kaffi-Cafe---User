@@ -196,50 +196,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 TouchableWidget(
                   onTap: () {
                     Navigator.pop(context);
-                    _showBranchSelectionDialog('Delivery');
-                  },
-                  child: Card(
-                    color: const Color(0xFFF6F7FB),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(cardRadius),
-                    ),
-                    child: Container(
-                      height: cardHeight,
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: iconSize,
-                            height: iconSize,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(iconSize / 2),
-                            ),
-                            child: Image.asset(
-                              'assets/images/courier.png',
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                          SizedBox(width: 24),
-                          Expanded(
-                            child: TextWidget(
-                              text: 'DELIVERY',
-                              fontSize: 18,
-                              fontFamily: 'Bold',
-                              color: bayanihanBlue,
-                              align: TextAlign.left,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16),
-                TouchableWidget(
-                  onTap: () {
-                    Navigator.pop(context);
                     showDialog(
                         context: context,
                         builder: (context) => AlertDialog(

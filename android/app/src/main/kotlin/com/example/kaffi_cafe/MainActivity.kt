@@ -1,4 +1,4 @@
-package com.example.kaffi_cafe
+package com.algovision.kafficafe
 
 import io.flutter.embedding.android.FlutterActivity
 

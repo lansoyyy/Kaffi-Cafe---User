@@ -19,6 +19,17 @@ class _AccountScreenState extends State<AccountScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Order status filter
+  String _selectedStatus = 'All';
+  final List<String> _statusFilters = [
+    'All',
+    'Pending',
+    'Preparing',
+    'Ready',
+    'Completed',
+    'Cancelled'
+  ];
+
   // Get user data from Firebase Auth
   String get _userName => _auth.currentUser?.displayName ?? 'User';
   String get _userEmail => _auth.currentUser?.email ?? 'No email';
@@ -278,6 +289,45 @@ class _AccountScreenState extends State<AccountScreen> {
                   letterSpacing: 1.2,
                 ),
                 const SizedBox(height: 12),
+                // Status Filter Chips
+                SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: _statusFilters.map((status) {
+                      final isSelected = _selectedStatus == status;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: TextWidget(
+                            text: status,
+                            fontSize: 12,
+                            color: isSelected ? plainWhite : textBlack,
+                            fontFamily: 'Regular',
+                          ),
+                          selected: isSelected,
+                          selectedColor: bayanihanBlue,
+                          backgroundColor: cloudWhite,
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedStatus = status;
+                            });
+                          },
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(
+                              color: isSelected ? bayanihanBlue : ashGray,
+                              width: isSelected ? 1 : 0.5,
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 StreamBuilder<QuerySnapshot>(
                   stream: _firestore
                       .collection('orders')
@@ -293,7 +343,19 @@ class _AccountScreenState extends State<AccountScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     final orders = snapshot.data!.docs;
-                    if (orders.isEmpty) {
+
+                    // Filter orders based on selected status
+                    final filteredOrders = _selectedStatus == 'All'
+                        ? orders
+                        : orders.where((order) {
+                            final orderData =
+                                order.data() as Map<String, dynamic>;
+                            final status = orderData['status'] ?? 'Pending';
+                            return status.toLowerCase() ==
+                                _selectedStatus.toLowerCase();
+                          }).toList();
+
+                    if (filteredOrders.isEmpty) {
                       return Center(
                         child: Column(
                           children: [
@@ -304,14 +366,16 @@ class _AccountScreenState extends State<AccountScreen> {
                             ),
                             const SizedBox(height: 16),
                             TextWidget(
-                              text: 'No orders yet',
+                              text: 'No orders found',
                               fontSize: fontSize + 2,
                               color: charcoalGray,
                               fontFamily: 'Regular',
                             ),
                             const SizedBox(height: 8),
                             TextWidget(
-                              text: 'Your order history will appear here',
+                              text: _selectedStatus == 'All'
+                                  ? 'Your order history will appear here'
+                                  : 'No orders with status: $_selectedStatus',
                               fontSize: fontSize - 1,
                               color: charcoalGray,
                               fontFamily: 'Regular',
@@ -323,13 +387,13 @@ class _AccountScreenState extends State<AccountScreen> {
                     return ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: orders.length,
+                      itemCount: filteredOrders.length,
                       itemBuilder: (context, index) {
-                        final orderData =
-                            orders[index].data() as Map<String, dynamic>;
+                        final orderData = filteredOrders[index].data()
+                            as Map<String, dynamic>;
                         final cartItems = List<Map<String, dynamic>>.from(
                             orderData['cartItems'] ?? []);
-                        final orderId = orders[index].id;
+                        final orderId = filteredOrders[index].id;
                         final timestamp = orderData['timestamp'] as Timestamp?;
                         final status = orderData['status'] ?? 'Pending';
                         final total = orderData['total'] ?? 0.0;

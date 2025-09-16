@@ -50,6 +50,7 @@ dependencies:
   http:
   url_launcher:
   crypto: ^3.0.3
+  auth0_flutter:
 
 dev_dependencies:
   flutter_test:

@@ -47,7 +47,6 @@ class _MenuTabState extends State<MenuTab> {
     'Add-ons'
   ];
   String _selectedCategory = 'All';
-  final List<String> _types = ['Dine in', 'Pickup', 'Delivery'];
 
   IconData _getCategoryIcon(String? category) {
     switch (category) {
@@ -105,27 +104,6 @@ class _MenuTabState extends State<MenuTab> {
                       ),
                     ),
                     SizedBox(width: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: (widget.selectedType == 'Delivery')
-                            ? bayanihanBlue.withOpacity(0.15)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 7),
-                        child: TextWidget(
-                          text: 'Delivery',
-                          fontSize: 15,
-                          color: (widget.selectedType == 'Delivery')
-                              ? bayanihanBlue
-                              : charcoalGray,
-                          fontFamily: 'Bold',
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 4),
                     Container(
                       decoration: BoxDecoration(
                         color: (widget.selectedType == 'Pickup')

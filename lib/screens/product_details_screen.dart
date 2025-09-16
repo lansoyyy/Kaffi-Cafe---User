@@ -19,19 +19,23 @@ class ProductDetailsScreen extends StatefulWidget {
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   int _quantity = 1;
+  String _selectedEspresso = 'Standard (double)';
+  bool _addShot = false;
   String _selectedSize = 'Regular';
-  String _selectedSweetness = 'Original Recipe (Dairy Milk)';
+  String _selectedSweetness = 'Regular Sweetness';
   String _selectedIce = 'Regular';
-  String _selectedMilk = 'Original Recipe (Dairy Milk)';
 
-  final List<Map<String, dynamic>> _sizes = [
-    {'name': 'Regular', 'price': 0.0},
-    {'name': 'Upsize (Large)', 'price': 15.0},
-    {'name': 'DoubleUP (MEGA) - For pickup only', 'price': 65.0},
+  final List<String> _espressoOptions = [
+    'Standard (double)',
+  ];
+
+  final List<String> _sizeOptions = [
+    'Regular',
+    'Large',
   ];
 
   final List<String> _sweetnessLevels = [
-    'Original Recipe (Dairy Milk)',
+    'Regular Sweetness',
     'Less Sweet',
     'Extra Sweet',
   ];
@@ -39,23 +43,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   final List<String> _iceLevels = [
     'Regular',
     'Less Ice',
-    'Extra Ice',
-    'No Ice',
-  ];
-
-  final List<Map<String, dynamic>> _milkOptions = [
-    {'name': 'Original Recipe (Dairy Milk)', 'price': 0.0},
-    {'name': 'Upgrade to Oat Milk', 'price': 30.0},
-    {'name': 'Upgrade to Soy Milk', 'price': 30.0},
   ];
 
   double get _totalPrice {
     double basePrice = widget.product['price'].toDouble();
-    double sizePrice =
-        _sizes.firstWhere((s) => s['name'] == _selectedSize)['price'];
-    double milkPrice =
-        _milkOptions.firstWhere((m) => m['name'] == _selectedMilk)['price'];
-    return basePrice + sizePrice + milkPrice;
+    double addShotPrice = _addShot ? 25.0 : 0.0;
+    double sizePrice = _selectedSize == 'Large' ? 15.0 : 0.0;
+    return basePrice + addShotPrice + sizePrice;
   }
 
   @override
@@ -92,20 +86,59 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             ),
 
             // Product image placeholder
-            Container(
-              width: screenWidth * 0.8,
-              height: screenHeight * 0.3,
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: ashGray.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(20),
-                image: DecorationImage(
-                  image: NetworkImage(
-                    widget.product['image'],
+            Stack(
+              children: [
+                Container(
+                  width: screenWidth * 0.8,
+                  height: screenHeight * 0.3,
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: ashGray.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(20),
+                    image: DecorationImage(
+                      image: NetworkImage(
+                        widget.product['image'],
+                      ),
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                  fit: BoxFit.cover,
                 ),
-              ),
+                // Ingredients overlay at bottom of image
+                Positioned(
+                  bottom: 0,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextWidget(
+                          text: 'Ingredients:',
+                          fontSize: 14,
+                          fontFamily: 'Bold',
+                          color: textBlack,
+                        ),
+                        const SizedBox(height: 4),
+                        TextWidget(
+                          text:
+                              widget.product['ingredients'] ?? 'Coffee, Water',
+                          fontSize: 12,
+                          fontFamily: 'Regular',
+                          color: charcoalGray,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
 
             // Product details
@@ -125,15 +158,34 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Size selection
-                    _buildSectionTitle('PICKUP Size - Choose one'),
+                    // Espresso Shots
+                    _buildSectionTitle('Espresso Shots'),
                     const SizedBox(height: 12),
-                    ..._sizes.map((size) => _buildRadioOption(
-                          title: size['name'],
-                          subtitle: size['price'] > 0
-                              ? '+P ${size['price'].toStringAsFixed(2)}'
-                              : 'P 0.00',
-                          value: size['name'],
+                    ..._espressoOptions.map((espresso) => _buildRadioOption(
+                          title: espresso,
+                          subtitle: 'P 0.00',
+                          value: espresso,
+                          groupValue: _selectedEspresso,
+                          onChanged: (value) =>
+                              setState(() => _selectedEspresso = value!),
+                        )),
+                    const SizedBox(height: 8),
+                    _buildCheckboxOption(
+                      title: 'Add Shot',
+                      subtitle: '+P 25.00',
+                      value: _addShot,
+                      onChanged: (value) => setState(() => _addShot = value!),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Coffee Size
+                    _buildSectionTitle('Coffee Size - Choose one'),
+                    const SizedBox(height: 12),
+                    ..._sizeOptions.map((size) => _buildRadioOption(
+                          title: size,
+                          subtitle: size == 'Large' ? '+P 15.00' : 'P 0.00',
+                          value: size,
                           groupValue: _selectedSize,
                           onChanged: (value) =>
                               setState(() => _selectedSize = value!),
@@ -141,23 +193,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Milk preference
-                    _buildSectionTitle('Milk Preference - Choose one'),
-                    const SizedBox(height: 12),
-                    ..._milkOptions.map((milk) => _buildRadioOption(
-                          title: milk['name'],
-                          subtitle: milk['price'] > 0
-                              ? '+P ${milk['price'].toStringAsFixed(2)}'
-                              : 'P 0.00',
-                          value: milk['name'],
-                          groupValue: _selectedMilk,
-                          onChanged: (value) =>
-                              setState(() => _selectedMilk = value!),
-                        )),
-
-                    const SizedBox(height: 20),
-
-                    // Sweetness level
+                    // Sweetness Level
                     _buildSectionTitle('Sweetness Level - Choose one'),
                     const SizedBox(height: 12),
                     ..._sweetnessLevels.map((sweetness) => _buildRadioOption(
@@ -171,8 +207,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Ice level
-                    _buildSectionTitle('Ice Level - Choose one'),
+                    // Ice Level
+                    _buildSectionTitle('Ice Level'),
                     const SizedBox(height: 12),
                     ..._iceLevels.map((ice) => _buildRadioOption(
                           title: ice,
@@ -251,10 +287,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     'price': _totalPrice,
                     'quantity': _quantity,
                     'customizations': {
+                      'espresso': _selectedEspresso,
+                      'addShot': _addShot,
                       'size': _selectedSize,
                       'sweetness': _selectedSweetness,
                       'ice': _selectedIce,
-                      'milk': _selectedMilk,
                     }
                   };
 
@@ -362,6 +399,72 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 fontSize: 14,
                 fontFamily: 'Bold',
                 color: isSelected ? bayanihanBlue : charcoalGray,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckboxOption({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required void Function(bool?) onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: value ? bayanihanBlue : ashGray.withOpacity(0.5),
+              width: value ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            color: value ? bayanihanBlue.withOpacity(0.05) : Colors.transparent,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  shape: BoxShape.rectangle,
+                  border: Border.all(
+                    color: value ? bayanihanBlue : ashGray,
+                    width: 2,
+                  ),
+                  color: value ? bayanihanBlue : Colors.transparent,
+                ),
+                child: value
+                    ? const Center(
+                        child: Icon(
+                          Icons.check,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextWidget(
+                  text: title,
+                  fontSize: 14,
+                  fontFamily: 'Regular',
+                  color: textBlack,
+                ),
+              ),
+              TextWidget(
+                text: subtitle,
+                fontSize: 14,
+                fontFamily: 'Bold',
+                color: value ? bayanihanBlue : charcoalGray,
               ),
             ],
           ),

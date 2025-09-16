@@ -1,3 +1,4 @@
+import 'package:auth0_flutter/auth0_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,6 +16,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  late Auth0 auth0;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    auth0 = Auth0('dev-1x4l6wkco1ygo6sx.us.auth0.com',
+        'zkHNki53NiSzkKygX4dsjvQqPqf2XirC');
+  }
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _resetEmailController = TextEditingController();
@@ -342,189 +353,44 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Padding(
         padding: EdgeInsets.symmetric(horizontal: padding, vertical: 12.0),
         child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Center(
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    height: 150,
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Center(
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  height: 150,
                 ),
-                const SizedBox(height: 12),
-                // Email Field
-                TextWidget(
-                  text: 'Email',
-                  fontSize: 20,
-                  color: textBlack,
-                  isBold: true,
-                  fontFamily: 'Bold',
-                  letterSpacing: 1.2,
+              ),
+
+              const SizedBox(height: 100),
+
+              // Sign Up Button
+              Center(
+                child: ButtonWidget(
+                  label: 'Get Started',
+                  onPressed: () async {
+                    final credentials = await auth0
+                        .webAuthentication(scheme: 'com.algovision.kafficafe')
+                        .login(useHTTPS: true);
+
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const HomeScreen()),
+                    );
+                  },
+                  color: primaryBlue,
+                  textColor: Colors.white,
+                  fontSize: fontSize + 2,
+                  height: 50,
+                  radius: 12,
+                  width: screenWidth * 0.6,
                 ),
-                const SizedBox(height: 8),
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      color: plainWhite,
-                      boxShadow: [
-                        BoxShadow(
-                          color: bayanihanBlue.withOpacity(0.1),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText: 'Enter your email',
-                        hintStyle: TextStyle(
-                          fontSize: fontSize,
-                          color: charcoalGray.withOpacity(0.6),
-                          fontFamily: 'Regular',
-                        ),
-                      ),
-                      style: TextStyle(
-                        fontSize: fontSize,
-                        color: textBlack,
-                        fontFamily: 'Regular',
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                // Password Field
-                TextWidget(
-                  text: 'Password',
-                  fontSize: 20,
-                  color: textBlack,
-                  isBold: true,
-                  fontFamily: 'Bold',
-                  letterSpacing: 1.2,
-                ),
-                const SizedBox(height: 8),
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      color: plainWhite,
-                      boxShadow: [
-                        BoxShadow(
-                          color: bayanihanBlue.withOpacity(0.1),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _passwordController,
-                      obscureText: !_isPasswordVisible,
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText: 'Enter your password',
-                        hintStyle: TextStyle(
-                          fontSize: fontSize,
-                          color: charcoalGray.withOpacity(0.6),
-                          fontFamily: 'Regular',
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _isPasswordVisible
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            color: bayanihanBlue,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _isPasswordVisible = !_isPasswordVisible;
-                            });
-                          },
-                        ),
-                      ),
-                      style: TextStyle(
-                        fontSize: fontSize,
-                        color: textBlack,
-                        fontFamily: 'Regular',
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Forgot Password
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: GestureDetector(
-                    onTap: _showForgotPasswordDialog,
-                    child: TextWidget(
-                      text: 'Forgot Password?',
-                      fontSize: fontSize - 1,
-                      color: bayanihanBlue,
-                      isBold: true,
-                      fontFamily: 'Bold',
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Login Button
-                Center(
-                  child: _isLoading
-                      ? Container(
-                          width: screenWidth * 0.6,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: bayanihanBlue.withOpacity(0.7),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          ),
-                        )
-                      : ButtonWidget(
-                          label: 'Log In',
-                          onPressed: _handleLogin,
-                          color: bayanihanBlue,
-                          textColor: plainWhite,
-                          fontSize: fontSize + 2,
-                          height: 50,
-                          radius: 12,
-                          width: screenWidth * 0.6,
-                        ),
-                ),
-                const SizedBox(height: 12),
-                // Sign Up Button
-                Center(
-                  child: ButtonWidget(
-                    label: 'Sign Up',
-                    onPressed: _handleSignUp,
-                    color: ashGray,
-                    textColor: textBlack,
-                    fontSize: fontSize + 2,
-                    height: 50,
-                    radius: 12,
-                    width: screenWidth * 0.6,
-                  ),
-                ),
-                const SizedBox(height: 30),
-              ],
-            ),
+              ),
+              const SizedBox(height: 30),
+            ],
           ),
         ),
       ),
