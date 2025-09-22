@@ -47,10 +47,12 @@ class _OrderScreenState extends State<OrderScreen> {
   final box = GetStorage();
 
   final GetStorage _storage = GetStorage();
-  String _selectedPaymentMethod = 'Cash on Delivery';
+  String _selectedPaymentMethod = 'GCash';
   String _voucherCode = '';
   double _discount = 0.0;
   int _pointsToEarn = 0;
+  String _voucherMessage = '';
+  bool _voucherValid = false;
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +201,30 @@ class _OrderScreenState extends State<OrderScreen> {
             // Payment Method
             _buildSectionHeader('Payment Method'),
             _buildPaymentMethodSelector(),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.amber, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextWidget(
+                      text:
+                          'Please note: Payment is required before we can process your order.',
+                      fontSize: 12,
+                      fontFamily: 'Regular',
+                      color: textBlack,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             const SizedBox(height: 20),
 
@@ -372,7 +398,7 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   Widget _buildPaymentMethodSelector() {
-    final paymentMethods = ['Cash on Delivery', 'GCash'];
+    final paymentMethods = ['GCash'];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -419,41 +445,47 @@ class _OrderScreenState extends State<OrderScreen> {
         border: Border.all(color: ashGray.withOpacity(0.3)),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.local_offer, color: bayanihanBlue, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  _voucherCode = value;
-                  // Simple discount logic - 10% off if code is "SAVE10"
-                  _discount = value.toUpperCase() == 'SAVE10'
-                      ? widget.subtotal * 0.1
-                      : 0.0;
-                });
-              },
-              decoration: InputDecoration(
-                hintText: 'Enter voucher code',
-                hintStyle: TextStyle(color: charcoalGray, fontSize: 14),
-                border: InputBorder.none,
+          Row(
+            children: [
+              Icon(Icons.local_offer, color: bayanihanBlue, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  onChanged: (value) {
+                    setState(() {
+                      _voucherCode = value;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Enter voucher code',
+                    hintStyle: TextStyle(color: charcoalGray, fontSize: 14),
+                    border: InputBorder.none,
+                  ),
+                ),
               ),
-            ),
+              if (_voucherCode.isNotEmpty)
+                TouchableWidget(
+                  onTap: _voucherValid ? _removeVoucher : _validateVoucher,
+                  child: TextWidget(
+                    text: _voucherValid ? 'Remove' : 'Apply',
+                    fontSize: 14,
+                    fontFamily: 'Bold',
+                    color: bayanihanBlue,
+                  ),
+                ),
+            ],
           ),
-          if (_voucherCode.isNotEmpty)
-            TouchableWidget(
-              onTap: () {
-                setState(() {
-                  _voucherCode = '';
-                  _discount = 0.0;
-                });
-              },
+          if (_voucherMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
               child: TextWidget(
-                text: 'Apply',
-                fontSize: 14,
-                fontFamily: 'Bold',
-                color: bayanihanBlue,
+                text: _voucherMessage,
+                fontSize: 12,
+                fontFamily: 'Regular',
+                color: _voucherValid ? Colors.green : Colors.red,
               ),
             ),
         ],
@@ -536,6 +568,61 @@ class _OrderScreenState extends State<OrderScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _validateVoucher() async {
+    if (_voucherCode.isEmpty) {
+      setState(() {
+        _voucherMessage = 'Please enter a voucher code';
+        _voucherValid = false;
+      });
+      return;
+    }
+
+    final _firestore = FirebaseFirestore.instance;
+
+    try {
+      // Query Firestore for the voucher code
+      final voucherQuery = await _firestore
+          .collection('voucher')
+          .where('code', isEqualTo: _voucherCode.toUpperCase())
+          .get();
+
+      if (voucherQuery.docs.isEmpty) {
+        setState(() {
+          _voucherMessage = 'Invalid voucher code';
+          _voucherValid = false;
+          _discount = 0.0;
+        });
+        return;
+      }
+
+      final voucherData = voucherQuery.docs.first.data();
+      final discountAmount = voucherData['discount'] ?? 0;
+
+      // Apply the discount
+      setState(() {
+        _discount = discountAmount.toDouble();
+        _voucherMessage =
+            'Voucher applied! You saved P${_discount.toStringAsFixed(2)}';
+        _voucherValid = true;
+      });
+    } catch (e) {
+      setState(() {
+        _voucherMessage = 'Error validating voucher: ${e.toString()}';
+        _voucherValid = false;
+        _discount = 0.0;
+      });
+    }
+  }
+
+  void _removeVoucher() {
+    setState(() {
+      _voucherCode = '';
+      _discount = 0.0;
+      _voucherMessage = '';
+      _voucherValid = false;
+    });
   }
 
   Future<void> _placeOrder() async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
 import 'package:kaffi_cafe/widgets/touchable_widget.dart';
@@ -17,23 +18,14 @@ class _RewardScreenState extends State<RewardScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Vouchers will be fetched from Firestore 'products' collection, limited to 4
-
+  final box = GetStorage();
   @override
   Widget build(BuildContext context) {
-    final user = _auth.currentUser;
-    if (user == null) {
-      return Center(
-        child: TextWidget(
-          text: 'Please log in to view rewards',
-          fontSize: 16,
-          fontFamily: 'Regular',
-          color: charcoalGray,
-        ),
-      );
-    }
-
     return StreamBuilder<DocumentSnapshot>(
-      stream: _firestore.collection('users').doc(user.uid).snapshots(),
+      stream: _firestore
+          .collection('users')
+          .doc(box.read('user')['email'])
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -113,9 +105,9 @@ class _RewardScreenState extends State<RewardScreen> {
 
               const SizedBox(height: 24),
 
-              // Vouchers Section
+              // Featured Menu Items Section
               TextWidget(
-                text: 'Redeem Vouchers',
+                text: 'Featured Menu Items',
                 fontSize: 22,
                 color: textBlack,
                 fontFamily: 'Bold',
@@ -124,7 +116,7 @@ class _RewardScreenState extends State<RewardScreen> {
               const SizedBox(height: 4),
 
               TextWidget(
-                text: 'Exchange your points for discount vouchers',
+                text: 'Redeem your points for any menu item',
                 fontSize: 14,
                 color: charcoalGray,
                 fontFamily: 'Regular',
@@ -132,39 +124,59 @@ class _RewardScreenState extends State<RewardScreen> {
 
               const SizedBox(height: 16),
 
-              // Voucher Options
-              _buildVoucherCard(
-                title: '₱10 OFF',
-                description: 'Minimum spend ₱50',
-                pointsCost: 10,
-                userPoints: userPoints,
-                discountAmount: 10,
-                voucherCode: 'SAVE10',
-                user: user,
-              ),
-
-              const SizedBox(height: 12),
-
-              _buildVoucherCard(
-                title: '₱20 OFF',
-                description: 'Minimum spend ₱100',
-                pointsCost: 20,
-                userPoints: userPoints,
-                discountAmount: 20,
-                voucherCode: 'SAVE20',
-                user: user,
-              ),
-
-              const SizedBox(height: 12),
-
-              _buildVoucherCard(
-                title: '₱50 OFF',
-                description: 'Minimum spend ₱200',
-                pointsCost: 50,
-                userPoints: userPoints,
-                discountAmount: 50,
-                voucherCode: 'SAVE50',
-                user: user,
+              // Menu Items from Firestore
+              StreamBuilder<QuerySnapshot>(
+                stream: _firestore
+                    .collection('products')
+                    .orderBy('timestamp', descending: true)
+                    .limit(10)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  final menuItems = snapshot.data?.docs ?? [];
+                  if (menuItems.isEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: ashGray.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: TextWidget(
+                          text: 'No menu items available at the moment.',
+                          fontSize: 14,
+                          color: charcoalGray,
+                          fontFamily: 'Regular',
+                        ),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: menuItems.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildMenuItemCard(
+                          name: data['name'] ?? 'Unknown Item',
+                          description: data['description'] ?? '',
+                          price: (data['price'] as num?)?.toDouble() ?? 0.0,
+                          pointsCost:
+                              ((data['price'] as num?)?.toDouble() ?? 0.0)
+                                  .toInt(),
+                          userPoints: userPoints,
+                          imageUrl: data['image'],
+                          product: data,
+                          user: box.read('user')['email'],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
               ),
 
               const SizedBox(height: 24),
@@ -182,7 +194,7 @@ class _RewardScreenState extends State<RewardScreen> {
               StreamBuilder<QuerySnapshot>(
                 stream: _firestore
                     .collection('redemptions')
-                    .where('userId', isEqualTo: user.uid)
+                    .where('userId', isEqualTo: box.read('user')['email'])
                     .orderBy('timestamp', descending: true)
                     .limit(10)
                     .snapshots(),
@@ -218,7 +230,8 @@ class _RewardScreenState extends State<RewardScreen> {
                     itemBuilder: (context, index) {
                       final data =
                           redemptions[index].data() as Map<String, dynamic>;
-                      final voucherName = data['voucherName'] ?? 'Voucher';
+                      final itemName =
+                          data['itemName'] ?? data['voucherName'] ?? 'Item';
                       final pointsSpent = data['pointsSpent'] ?? 0;
                       final timestamp = data['timestamp'] as Timestamp?;
                       final dateStr = timestamp != null
@@ -241,7 +254,7 @@ class _RewardScreenState extends State<RewardScreen> {
                                 color: palmGreen.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(Icons.local_offer,
+                              child: Icon(Icons.restaurant,
                                   color: palmGreen, size: 20),
                             ),
                             const SizedBox(width: 12),
@@ -250,7 +263,7 @@ class _RewardScreenState extends State<RewardScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   TextWidget(
-                                    text: voucherName,
+                                    text: itemName,
                                     fontSize: 14,
                                     color: textBlack,
                                     fontFamily: 'Bold',
@@ -279,23 +292,24 @@ class _RewardScreenState extends State<RewardScreen> {
     );
   }
 
-  Widget _buildVoucherCard({
-    required String title,
+  Widget _buildMenuItemCard({
+    required String name,
     required String description,
+    required double price,
     required int pointsCost,
     required int userPoints,
-    required int discountAmount,
-    required String voucherCode,
-    required User user,
+    String? imageUrl,
+    required Map<String, dynamic> product,
+    required String user,
   }) {
     final canRedeem = userPoints >= pointsCost;
 
     return TouchableWidget(
       onTap: canRedeem
-          ? () => _redeemVoucher(pointsCost, title, voucherCode, user)
+          ? () => _redeemMenuItem(pointsCost, name, product, user)
           : null,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -317,33 +331,48 @@ class _RewardScreenState extends State<RewardScreen> {
         ),
         child: Row(
           children: [
-            // Voucher Icon
+            // Menu Item Image
             Container(
-              width: 60,
-              height: 60,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 color: canRedeem
                     ? bayanihanBlue.withOpacity(0.1)
                     : ashGray.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                Icons.local_offer,
-                color: canRedeem ? bayanihanBlue : ashGray,
-                size: 28,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imageUrl != null && imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.restaurant,
+                          color: canRedeem ? bayanihanBlue : ashGray,
+                          size: 40,
+                        ),
+                      )
+                    : Icon(
+                        Icons.restaurant,
+                        color: canRedeem ? bayanihanBlue : ashGray,
+                        size: 40,
+                      ),
               ),
             ),
 
             const SizedBox(width: 16),
 
-            // Voucher Details
+            // Menu Item Details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextWidget(
-                    text: title,
-                    fontSize: 20,
+                    text: name,
+                    fontSize: 18,
                     color: canRedeem ? textBlack : ashGray,
                     fontFamily: 'Bold',
                   ),
@@ -353,10 +382,18 @@ class _RewardScreenState extends State<RewardScreen> {
                     fontSize: 14,
                     color: canRedeem ? charcoalGray : ashGray,
                     fontFamily: 'Regular',
+                    maxLines: 2,
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
+                      TextWidget(
+                        text: '₱${price.toStringAsFixed(2)}',
+                        fontSize: 16,
+                        color: canRedeem ? bayanihanBlue : ashGray,
+                        fontFamily: 'Bold',
+                      ),
+                      const SizedBox(width: 12),
                       Icon(
                         Icons.star,
                         color: canRedeem ? Colors.amber : ashGray,
@@ -395,11 +432,11 @@ class _RewardScreenState extends State<RewardScreen> {
     );
   }
 
-  Future<void> _redeemVoucher(int pointsCost, String voucherTitle,
-      String voucherCode, User user) async {
+  Future<void> _redeemMenuItem(int pointsCost, String itemName,
+      Map<String, dynamic> product, String user) async {
     try {
       // Deduct points from user account
-      final userDoc = _firestore.collection('users').doc(user.uid);
+      final userDoc = _firestore.collection('users').doc(user);
       await _firestore.runTransaction((transaction) async {
         final snapshot = await transaction.get(userDoc);
         final currentPoints = (snapshot.data()?['points'] ?? 0) as int;
@@ -415,18 +452,28 @@ class _RewardScreenState extends State<RewardScreen> {
 
       // Add redemption record
       await _firestore.collection('redemptions').add({
-        'userId': user.uid,
-        'voucherName': voucherTitle,
-        'voucherCode': voucherCode,
+        'userId': user,
+        'itemName': itemName,
+        'productId': product['id'],
         'pointsSpent': pointsCost,
         'timestamp': FieldValue.serverTimestamp(),
         'status': 'active',
       });
 
+      // Add item to user's cart
+      await _firestore.collection('users').doc(user).collection('cart').add({
+        'name': itemName,
+        'price': product['price'],
+        'quantity': 1,
+        'customizations': {},
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRedeemed': true,
+      });
+
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Voucher redeemed! Use code: $voucherCode'),
+          content: Text('$itemName added to your cart!'),
           backgroundColor: palmGreen,
           duration: const Duration(seconds: 3),
         ),
@@ -434,7 +481,7 @@ class _RewardScreenState extends State<RewardScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to redeem voucher: $e'),
+          content: Text('Failed to redeem item: $e'),
           backgroundColor: Colors.red,
         ),
       );

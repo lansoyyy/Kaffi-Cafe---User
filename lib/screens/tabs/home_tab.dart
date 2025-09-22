@@ -655,20 +655,6 @@ class _HomeTabState extends State<HomeTab> {
                                                                       'Bold',
                                                                   maxLines: 1,
                                                                 ),
-                                                                const SizedBox(
-                                                                    height: 6),
-                                                                TextWidget(
-                                                                  text: branch[
-                                                                      'address']!,
-                                                                  fontSize:
-                                                                      fontSize -
-                                                                          1,
-                                                                  color:
-                                                                      charcoalGray,
-                                                                  fontFamily:
-                                                                      'Regular',
-                                                                  maxLines: 2,
-                                                                ),
                                                               ],
                                                             ),
                                                           ),
@@ -780,13 +766,13 @@ class _HomeTabState extends State<HomeTab> {
 
   final List<Map<String, String>> _branches = [
     {
-      'name': 'Kaffi Cafe - Downtown',
+      'name': 'Kaffi Cafe - Eloisa St',
       'address': '123 Bayanihan St, Manila, Philippines',
       'image':
           'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/10/1f/ef/54/te-kaffi.jpg?w=1000&h=-1&s=1',
     },
     {
-      'name': 'Kaffi Cafe - Uptown',
+      'name': 'Kaffi Cafe - P.Noval',
       'address': '456 Espresso Ave, Quezon City, Philippines',
       'image':
           'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/13/02/71/53/fron.jpg?w=1000&h=-1&s=1',
@@ -898,14 +884,6 @@ class _HomeTabState extends State<HomeTab> {
                                   color: textBlack,
                                   isBold: true,
                                   fontFamily: 'Bold',
-                                  maxLines: 1,
-                                ),
-                                const SizedBox(height: 6),
-                                TextWidget(
-                                  text: branch['address']!,
-                                  fontSize: fontSize - 1,
-                                  color: charcoalGray,
-                                  fontFamily: 'Regular',
                                   maxLines: 2,
                                 ),
                               ],

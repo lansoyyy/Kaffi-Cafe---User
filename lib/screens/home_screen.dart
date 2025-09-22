@@ -7,6 +7,7 @@ import 'package:kaffi_cafe/screens/tabs/home_tab.dart';
 import 'package:kaffi_cafe/screens/tabs/menu_tab.dart';
 import 'package:kaffi_cafe/screens/tabs/order_screen.dart';
 import 'package:kaffi_cafe/screens/tabs/reward_tab.dart';
+import 'package:kaffi_cafe/screens/notifications_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/logout_widget.dart';
@@ -119,9 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  String get _userName => _auth.currentUser?.displayName ?? 'User';
+  final box = GetStorage();
 
   showOrderDialog() {
     showDialog(
@@ -364,20 +363,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                   isBold: true,
                                                                   fontFamily:
                                                                       'Bold',
-                                                                  maxLines: 1,
-                                                                ),
-                                                                const SizedBox(
-                                                                    height: 6),
-                                                                TextWidget(
-                                                                  text: branch[
-                                                                      'address']!,
-                                                                  fontSize:
-                                                                      fontSize -
-                                                                          1,
-                                                                  color:
-                                                                      charcoalGray,
-                                                                  fontFamily:
-                                                                      'Regular',
                                                                   maxLines: 2,
                                                                 ),
                                                               ],
@@ -504,11 +489,25 @@ class _HomeScreenState extends State<HomeScreen> {
       RewardScreen(),
       AccountScreen(),
     ];
+
     return Scaffold(
       appBar: AppBar(
         foregroundColor: Colors.white,
         backgroundColor: bayanihanBlue,
         actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
+            },
+            icon: Icon(
+              Icons.notifications,
+            ),
+          ),
           IconButton(
             onPressed: () {
               logout(context, HomeScreen());
@@ -520,7 +519,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
         automaticallyImplyLeading: false,
         title: TextWidget(
-          text: "Good Day ${_userName.split(' ')[0]}!",
+          text: "Good Day ${box.read('user')['given_name']}!",
           fontSize: 24,
           fontFamily: 'Bold',
           color: Colors.white,
@@ -561,13 +560,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Map<String, String>> _branches = [
     {
-      'name': 'Kaffi Cafe - Downtown',
+      'name': 'Kaffi Cafe - Eloisa St',
       'address': '123 Bayanihan St, Manila, Philippines',
       'image':
           'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/10/1f/ef/54/te-kaffi.jpg?w=1000&h=-1&s=1',
     },
     {
-      'name': 'Kaffi Cafe - Uptown',
+      'name': 'Kaffi Cafe - P.Noval',
       'address': '456 Espresso Ave, Quezon City, Philippines',
       'image':
           'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/13/02/71/53/fron.jpg?w=1000&h=-1&s=1',
@@ -678,14 +677,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                   color: textBlack,
                                   isBold: true,
                                   fontFamily: 'Bold',
-                                  maxLines: 1,
-                                ),
-                                const SizedBox(height: 6),
-                                TextWidget(
-                                  text: branch['address']!,
-                                  fontSize: fontSize - 1,
-                                  color: charcoalGray,
-                                  fontFamily: 'Regular',
                                   maxLines: 2,
                                 ),
                               ],

@@ -395,7 +395,7 @@ class _AccountScreenState extends State<AccountScreen> {
                         final status = orderData['status'] ?? 'Pending';
                         final total = orderData['total'] ?? 0.0;
                         final branch = orderData['branch'] ?? 'Unknown Branch';
-                        final type = orderData['type'] ?? 'Unknown Type';
+                        final type = orderData['type'] ?? '';
 
                         return Card(
                           elevation: 4,
@@ -465,7 +465,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: TextWidget(
-                                        text: '$branch - $type',
+                                        text: '$branch',
                                         fontSize: fontSize - 1,
                                         color: charcoalGray,
                                         fontFamily: 'Regular',
