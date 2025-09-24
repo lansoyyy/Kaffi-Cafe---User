@@ -13,6 +13,7 @@ import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/logout_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
 import 'package:kaffi_cafe/widgets/touchable_widget.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'reservation_screen.dart';
 
@@ -25,7 +26,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GetStorage _storage = GetStorage();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   int _selectedIndex = 0;
+  int _notificationCount = 0;
 
   // Cart state
   final List<Map<String, dynamic>> _cartItems = [];
@@ -100,6 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Load stored branch and type
     _selectedBranch = _storage.read('selectedBranch');
     _selectedType = _storage.read('selectedType');
+    // Get notification count
+    _getNotificationCount();
     // If not set, show dialog to select
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_storage.read('selectedBranch') == null ||
@@ -107,6 +112,25 @@ class _HomeScreenState extends State<HomeScreen> {
         showOrderDialog();
       }
     });
+  }
+
+  Future<void> _getNotificationCount() async {
+    try {
+      final userEmail = _storage.read('user')?['email'];
+      if (userEmail != null) {
+        // Get orders count to use as notification count
+        final ordersSnapshot = await _firestore
+            .collection('orders')
+            .where('userId', isEqualTo: userEmail)
+            .get();
+
+        setState(() {
+          _notificationCount = ordersSnapshot.docs.length;
+        });
+      }
+    } catch (e) {
+      print('Error getting notification count: $e');
+    }
   }
 
   void _onItemTapped(int index) {
@@ -495,18 +519,52 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         backgroundColor: bayanihanBlue,
         actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationsScreen(),
+          Stack(
+            children: [
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationsScreen(),
+                    ),
+                  ).then((_) {
+                    // Refresh notification count when returning from notifications screen
+                    _getNotificationCount();
+                  });
+                },
+                icon: Icon(
+                  Icons.notifications,
                 ),
-              );
-            },
-            icon: Icon(
-              Icons.notifications,
-            ),
+              ),
+              if (_notificationCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      _notificationCount > 99
+                          ? '99+'
+                          : _notificationCount.toString(),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
           IconButton(
             onPressed: () {

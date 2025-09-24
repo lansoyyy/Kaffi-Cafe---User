@@ -15,6 +15,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kaffi_cafe/utils/keys.dart';
+import 'package:kaffi_cafe/services/branch_service.dart';
 
 class OrderScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -45,6 +46,7 @@ class OrderScreen extends StatefulWidget {
 
 class _OrderScreenState extends State<OrderScreen> {
   final box = GetStorage();
+  final BranchService _branchService = BranchService();
 
   final GetStorage _storage = GetStorage();
   String _selectedPaymentMethod = 'GCash';
@@ -53,6 +55,42 @@ class _OrderScreenState extends State<OrderScreen> {
   int _pointsToEarn = 0;
   String _voucherMessage = '';
   bool _voucherValid = false;
+  bool _isBranchOnline = false;
+  bool _isLoadingBranchStatus = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBranchOnlineStatus();
+  }
+
+  Future<void> _checkBranchOnlineStatus() async {
+    if (widget.selectedBranch != null) {
+      setState(() {
+        _isLoadingBranchStatus = true;
+      });
+
+      final isOnline =
+          await _branchService.isBranchOnline(widget.selectedBranch!);
+
+      setState(() {
+        _isBranchOnline = isOnline;
+        _isLoadingBranchStatus = false;
+      });
+    } else {
+      setState(() {
+        _isLoadingBranchStatus = false;
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(OrderScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedBranch != widget.selectedBranch) {
+      _checkBranchOnlineStatus();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,13 +141,48 @@ class _OrderScreenState extends State<OrderScreen> {
                           fontFamily: 'Bold',
                           color: charcoalGray,
                         ),
-                        TextWidget(
-                          text: widget.selectedBranch ?? 'No branch selected',
-                          fontSize: 14,
-                          fontFamily: 'Bold',
-                          color: textBlack,
-                          maxLines: 2,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextWidget(
+                                text: widget.selectedBranch ??
+                                    'No branch selected',
+                                fontSize: 14,
+                                fontFamily: 'Bold',
+                                color: textBlack,
+                                maxLines: 2,
+                              ),
+                            ),
+                            if (!_isLoadingBranchStatus)
+                              Icon(
+                                _isBranchOnline
+                                    ? Icons.circle
+                                    : Icons.circle_outlined,
+                                color:
+                                    _isBranchOnline ? Colors.green : Colors.red,
+                                size: 16,
+                              )
+                            else
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: bayanihanBlue,
+                                ),
+                              ),
+                          ],
                         ),
+                        if (!_isLoadingBranchStatus && !_isBranchOnline)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: TextWidget(
+                              text: 'This branch is currently offline',
+                              fontSize: 12,
+                              fontFamily: 'Regular',
+                              color: Colors.red,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -264,7 +337,9 @@ class _OrderScreenState extends State<OrderScreen> {
             label: 'Order now',
             onPressed: widget.cartItems.isEmpty ||
                     widget.selectedBranch == null ||
-                    widget.selectedType == null
+                    widget.selectedType == null ||
+                    !_isBranchOnline ||
+                    _isLoadingBranchStatus
                 ? null
                 : _placeOrder,
             color: bayanihanBlue,
