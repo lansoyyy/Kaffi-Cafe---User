@@ -204,7 +204,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
         'guests': _numberOfGuests,
         'status': 'confirmed',
         'createdAt': FieldValue.serverTimestamp(),
-        'branch': _storage.read('selectedBranch') ?? 'Kaffi Cafe - Main Branch',
+        'branch': _storage.read('selectedBranch') ?? 'Kaffi Cafe - Eloisa St',
       });
 
       // Save reservation data locally
