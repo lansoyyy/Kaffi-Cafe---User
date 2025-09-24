@@ -10,6 +10,8 @@ import 'package:kaffi_cafe/widgets/divider_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
 import 'package:kaffi_cafe/widgets/touchable_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:collection/collection.dart';
+import 'dart:math';
 
 class HomeTab extends StatefulWidget {
   final VoidCallback? onBranchSelected;
@@ -288,8 +290,333 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
+  // Helper method to build product cards
+  Widget _buildProductCard(Map<String, dynamic> data, double cardWidth,
+      double cardHeight, double gradientHeight, double padding) {
+    return TouchableWidget(
+      onTap: () {
+        _showAddToCartDialog(data);
+      },
+      child: Card(
+        elevation: 1,
+        child: Container(
+          height: cardHeight,
+          width: cardWidth,
+          decoration: BoxDecoration(
+            color: Colors.black26,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Stack(
+              children: [
+                // Category icon background
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: bayanihanBlue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(15),
+                      image: DecorationImage(
+                          image: NetworkImage(
+                            data['image'],
+                          ),
+                          fit: BoxFit.cover),
+                    ),
+                  ),
+                ),
+                // Gradient overlay
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: gradientHeight,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          jetBlack.withOpacity(0.7),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Text content
+                Padding(
+                  padding: EdgeInsets.fromLTRB(padding, 0, padding, padding),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 80,
+                                child: TextWidget(
+                                  text: data['name'] ?? 'Product',
+                                  fontSize: 16,
+                                  fontFamily: 'Medium',
+                                  color: Colors.white,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 80,
+                                child: TextWidget(
+                                  text: data['description'] ?? 'Delicious item',
+                                  fontSize: 11,
+                                  fontFamily: 'Regular',
+                                  color: Colors.white,
+                                  maxLines: 2,
+                                ),
+                              ),
+                            ],
+                          ),
+                          TextWidget(
+                            text:
+                                '₱${(data['price'] as num?)?.toStringAsFixed(0) ?? '0'}',
+                            fontSize: 22,
+                            fontFamily: 'Bold',
+                            color: sunshineYellow,
+                            maxLines: 1,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // Add state to track selected type
   String? _pendingType;
+
+  /// KNN Recommendation Algorithm Function
+  /// This function implements item-based collaborative filtering using cosine similarity
+  Future<List<Map<String, dynamic>>> getKNNRecommendations(String userId,
+      {int k = 3}) async {
+    try {
+      // Step 1: Fetch all orders from Firebase to build the item-user matrix
+      final ordersSnapshot =
+          await FirebaseFirestore.instance.collection('orders').get();
+      final allOrders = ordersSnapshot.docs;
+
+      // Step 2: Create a list of all unique items and users
+      Set<String> allItemIds = {};
+      Set<String> allUserIds = {};
+
+      // Map to store item details for later reference
+      Map<String, Map<String, dynamic>> itemDetails = {};
+
+      // First, get all product details
+      final productsSnapshot =
+          await FirebaseFirestore.instance.collection('products').get();
+      for (var productDoc in productsSnapshot.docs) {
+        final productId = productDoc.id;
+        final productData = productDoc.data() as Map<String, dynamic>;
+        itemDetails[productId] = productData;
+        allItemIds.add(productId);
+      }
+
+      // Extract users and items from orders
+      for (var orderDoc in allOrders) {
+        final orderData = orderDoc.data() as Map<String, dynamic>;
+        final orderUserId = orderData['userId'] as String?;
+        final items = orderData['items'] as List<dynamic>?;
+
+        if (orderUserId != null && items != null) {
+          allUserIds.add(orderUserId);
+          for (var item in items) {
+            if (item is Map<String, dynamic>) {
+              final itemId = item['id'] as String?;
+              if (itemId != null) {
+                allItemIds.add(itemId);
+              }
+            }
+          }
+        }
+      }
+
+      // Convert sets to lists for indexing
+      List<String> itemList = allItemIds.toList();
+      List<String> userList = allUserIds.toList();
+
+      // Step 3: Create the item-user matrix (1 if user ordered item, 0 otherwise)
+      Map<String, Map<String, int>> itemUserMatrix = {};
+
+      // Initialize matrix with zeros
+      for (var itemId in itemList) {
+        itemUserMatrix[itemId] = {};
+        for (var userId in userList) {
+          itemUserMatrix[itemId]![userId] = 0;
+        }
+      }
+
+      // Fill the matrix with 1s where user has ordered the item
+      for (var orderDoc in allOrders) {
+        final orderData = orderDoc.data() as Map<String, dynamic>;
+        final orderUserId = orderData['userId'] as String?;
+        final items = orderData['items'] as List<dynamic>?;
+
+        if (orderUserId != null && items != null) {
+          for (var item in items) {
+            if (item is Map<String, dynamic>) {
+              final itemId = item['id'] as String?;
+              if (itemId != null &&
+                  itemUserMatrix.containsKey(itemId) &&
+                  itemUserMatrix[itemId]!.containsKey(orderUserId)) {
+                itemUserMatrix[itemId]![orderUserId] = 1;
+              }
+            }
+          }
+        }
+      }
+
+      // Step 4: Calculate cosine similarity between items
+      Map<String, Map<String, double>> similarityScores = {};
+
+      // Initialize similarity matrix
+      for (var itemId1 in itemList) {
+        similarityScores[itemId1] = {};
+        for (var itemId2 in itemList) {
+          similarityScores[itemId1]![itemId2] = 0.0;
+        }
+      }
+
+      // Calculate cosine similarity for each pair of items
+      for (var itemId1 in itemList) {
+        for (var itemId2 in itemList) {
+          if (itemId1 == itemId2) {
+            similarityScores[itemId1]![itemId2] =
+                1.0; // Same item has perfect similarity
+            continue;
+          }
+
+          // Get user vectors for both items
+          List<int> vector1 = [];
+          List<int> vector2 = [];
+
+          for (var userId in userList) {
+            vector1.add(itemUserMatrix[itemId1]![userId]!);
+            vector2.add(itemUserMatrix[itemId2]![userId]!);
+          }
+
+          // Calculate dot product
+          double dotProduct = 0;
+          for (int i = 0; i < vector1.length; i++) {
+            dotProduct += vector1[i] * vector2[i];
+          }
+
+          // Calculate magnitudes
+          double magnitude1 = sqrt(
+              vector1.map((x) => x * x).reduce((a, b) => a + b).toDouble());
+          double magnitude2 = sqrt(
+              vector2.map((x) => x * x).reduce((a, b) => a + b).toDouble());
+
+          // Calculate cosine similarity
+          double cosineSimilarity = 0;
+          if (magnitude1 > 0 && magnitude2 > 0) {
+            cosineSimilarity = dotProduct / (magnitude1 * magnitude2);
+          }
+
+          similarityScores[itemId1]![itemId2] = cosineSimilarity;
+        }
+      }
+
+      // Step 5: Store similarity scores in Firebase for future use
+      // Check if similarity scores collection exists, if not create it
+      final similarityCollection =
+          FirebaseFirestore.instance.collection('item_similarity');
+
+      // Store each item's similarity scores
+      for (var itemId in itemList) {
+        final similarityDoc = similarityCollection.doc(itemId);
+        await similarityDoc.set(similarityScores[itemId]!);
+      }
+
+      // Step 6: Get items the current user has ordered
+      Set<String> userOrderedItems = {};
+
+      for (var orderDoc in allOrders) {
+        final orderData = orderDoc.data() as Map<String, dynamic>;
+        final orderUserId = orderData['userId'] as String?;
+        final items = orderData['items'] as List<dynamic>?;
+
+        if (orderUserId == userId && items != null) {
+          for (var item in items) {
+            if (item is Map<String, dynamic>) {
+              final itemId = item['id'] as String?;
+              if (itemId != null) {
+                userOrderedItems.add(itemId);
+              }
+            }
+          }
+        }
+      }
+
+      // Step 7: Find similar items based on user's order history
+      Map<String, double> recommendationScores = {};
+
+      for (var userItem in userOrderedItems) {
+        if (similarityScores.containsKey(userItem)) {
+          for (var itemId in itemList) {
+            if (!userOrderedItems.contains(itemId)) {
+              // Don't recommend items already ordered
+              double similarity = similarityScores[userItem]![itemId] ?? 0.0;
+              if (recommendationScores.containsKey(itemId)) {
+                recommendationScores[itemId] =
+                    max(recommendationScores[itemId]!, similarity);
+              } else {
+                recommendationScores[itemId] = similarity;
+              }
+            }
+          }
+        }
+      }
+
+      // Step 8: Sort by similarity score and get top K recommendations
+      List<MapEntry<String, double>> sortedRecommendations =
+          recommendationScores.entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+
+      // Get top K recommendations
+      List<Map<String, dynamic>> recommendations = [];
+      int count = 0;
+
+      for (var entry in sortedRecommendations) {
+        if (count >= k) break;
+
+        String itemId = entry.key;
+        double similarity = entry.value;
+
+        if (itemDetails.containsKey(itemId)) {
+          Map<String, dynamic> recommendation =
+              Map<String, dynamic>.from(itemDetails[itemId]!);
+          recommendation['similarity_score'] = similarity;
+          recommendations.add(recommendation);
+          count++;
+        }
+      }
+
+      return recommendations;
+    } catch (e) {
+      print('Error in KNN recommendation: $e');
+      // Return empty list if there's an error
+      return [];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -333,12 +660,9 @@ class _HomeTabState extends State<HomeTab> {
             const SizedBox(height: 10),
             SizedBox(
               height: 180,
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('products')
-                    .orderBy('timestamp', descending: true)
-                    .limit(5)
-                    .snapshots(),
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: getKNNRecommendations(box.read('user')?['email'] ?? '',
+                    k: 5),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return Center(child: Text('Error: ${snapshot.error}'));
@@ -346,124 +670,48 @@ class _HomeTabState extends State<HomeTab> {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final products = snapshot.data!.docs;
-                  if (products.isEmpty) {
-                    return Center(child: Text('No products found.'));
+                  final recommendations = snapshot.data!;
+                  if (recommendations.isEmpty) {
+                    // Fallback to latest products if no recommendations
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('products')
+                          .orderBy('timestamp', descending: true)
+                          .limit(5)
+                          .snapshots(),
+                      builder: (context, productSnapshot) {
+                        if (productSnapshot.hasError) {
+                          return Center(
+                              child: Text('Error: ${productSnapshot.error}'));
+                        }
+                        if (!productSnapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        final products = productSnapshot.data!.docs;
+                        if (products.isEmpty) {
+                          return Center(child: Text('No products found.'));
+                        }
+                        return ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: products.length,
+                          itemBuilder: (context, index) {
+                            final data =
+                                products[index].data() as Map<String, dynamic>;
+                            return _buildProductCard(data, cardWidth,
+                                cardHeight, gradientHeight, padding);
+                          },
+                        );
+                      },
+                    );
                   }
                   return ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: products.length,
+                    itemCount: recommendations.length,
                     itemBuilder: (context, index) {
-                      final data =
-                          products[index].data() as Map<String, dynamic>;
-                      return TouchableWidget(
-                        onTap: () {
-                          _showAddToCartDialog(data);
-                        },
-                        child: Card(
-                          elevation: 1,
-                          child: Container(
-                            height: cardHeight,
-                            width: cardWidth,
-                            decoration: BoxDecoration(
-                              color: Colors.black26,
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(15),
-                              child: Stack(
-                                children: [
-                                  // Category icon background
-                                  Positioned.fill(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: bayanihanBlue.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(15),
-                                        image: DecorationImage(
-                                            image: NetworkImage(
-                                              data['image'],
-                                            ),
-                                            fit: BoxFit.cover),
-                                      ),
-                                    ),
-                                  ),
-                                  // Gradient overlay
-                                  Positioned(
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: gradientHeight,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [
-                                            Colors.transparent,
-                                            jetBlack.withOpacity(0.7),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Text content
-                                  Padding(
-                                    padding: EdgeInsets.fromLTRB(
-                                        padding, 0, padding, padding),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                TextWidget(
-                                                  text:
-                                                      data['name'] ?? 'Product',
-                                                  fontSize: 16,
-                                                  fontFamily: 'Medium',
-                                                  color: Colors.white,
-                                                  maxLines: 1,
-                                                ),
-                                                SizedBox(
-                                                  width: 100,
-                                                  child: TextWidget(
-                                                    text: data['description'] ??
-                                                        'Delicious item',
-                                                    fontSize: 11,
-                                                    fontFamily: 'Regular',
-                                                    color: Colors.white,
-                                                    maxLines: 1,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            TextWidget(
-                                              text:
-                                                  '₱${(data['price'] as num?)?.toStringAsFixed(0) ?? '0'}',
-                                              fontSize: 22,
-                                              fontFamily: 'Bold',
-                                              color: sunshineYellow,
-                                              maxLines: 1,
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
+                      final data = recommendations[index];
+                      return _buildProductCard(
+                          data, cardWidth, cardHeight, gradientHeight, padding);
                     },
                   );
                 },
