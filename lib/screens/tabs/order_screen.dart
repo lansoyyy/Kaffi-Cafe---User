@@ -179,7 +179,8 @@ class _OrderScreenState extends State<OrderScreen> {
                           Padding(
                             padding: const EdgeInsets.only(top: 4.0),
                             child: TextWidget(
-                              text: 'This branch is currently offline',
+                              text:
+                                  'You can’t order at the moment store is close',
                               fontSize: 12,
                               fontFamily: 'Regular',
                               color: Colors.red,

@@ -7,6 +7,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 class SeatReservationScreen extends StatefulWidget {
   const SeatReservationScreen({super.key});
@@ -35,8 +36,11 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
   String? _selectedTableId;
   int _numberOfGuests = 1;
   Map<String, bool> _tableAvailability = {};
+  Map<String, bool> _tableEnabledStatus = {};
+  Map<String, dynamic> _tableReservations = {};
   List<String> _availableTimeSlots = [];
   bool _isLoading = true;
+  Timer? _statusUpdateTimer;
 
   // Initialize the reservation screen
   @override
@@ -51,17 +55,98 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
       _isLoading = true;
     });
 
-    // Initialize table availability
+    // Initialize table availability and enabled status
     for (var table in _tables) {
       _tableAvailability[table['id']] = true;
+      _tableEnabledStatus[table['id']] = true;
     }
+
+    // Load table enabled status from Firestore
+    await _loadTableStatuses();
+
+    // Load today's reservations
+    await _loadTableReservations();
 
     // Generate available time slots based on operating hours
     _generateTimeSlots();
 
+    // Start periodic status updates
+    _startStatusUpdates();
+
     setState(() {
       _isLoading = false;
     });
+  }
+
+  // Load table enabled status from Firestore
+  Future<void> _loadTableStatuses() async {
+    try {
+      for (var table in _tables) {
+        final doc =
+            await _firestore.collection('tables').doc(table['id']).get();
+        if (doc.exists) {
+          final data = doc.data() as Map<String, dynamic>;
+          setState(() {
+            _tableEnabledStatus[table['id']] = data['enabled'] ?? true;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading table statuses: $e');
+    }
+  }
+
+  // Load today's reservations
+  Future<void> _loadTableReservations() async {
+    try {
+      final today = DateFormat('dd/MM/yyyy').format(DateTime.now());
+      final QuerySnapshot snapshot = await _firestore
+          .collection('reservations')
+          .where('reservation.date', isEqualTo: today)
+          .where('reservation.status',
+              whereIn: ['confirmed', 'checked_in']).get();
+
+      Map<String, dynamic> reservations = {};
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final tableId = data['tableId'] as String;
+        reservations[tableId] = {
+          ...data['reservation'],
+          'docId': doc.id,
+        };
+      }
+
+      setState(() {
+        _tableReservations = reservations;
+      });
+    } catch (e) {
+      print('Error loading table reservations: $e');
+    }
+  }
+
+  // Start periodic status updates
+  void _startStatusUpdates() {
+    _statusUpdateTimer?.cancel();
+    _statusUpdateTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+      _loadTableReservations();
+    });
+  }
+
+  // Get current table status
+  String _getTableStatus(String tableId) {
+    if (!_tableEnabledStatus[tableId]!) {
+      return 'Disabled';
+    }
+
+    // Check if table has active reservation
+    if (_tableReservations.containsKey(tableId)) {
+      final reservation = _tableReservations[tableId];
+      if (reservation['status'] == 'confirmed') {
+        return 'Reserved';
+      }
+    }
+
+    return 'Available';
   }
 
   // Generate available time slots based on operating hours (7:00 AM - 11:00 PM)
@@ -98,6 +183,11 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
   Future<bool> _checkTableAvailability(
       String tableId, DateTime date, String time) async {
     try {
+      // First check if table is enabled
+      if (!_tableEnabledStatus[tableId]!) {
+        return false;
+      }
+
       // Format date for Firestore query
       String formattedDate =
           '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -106,9 +196,11 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
       final QuerySnapshot snapshot = await _firestore
           .collection('reservations')
           .where('tableId', isEqualTo: tableId)
-          .where('date', isEqualTo: formattedDate)
-          .where('time', isEqualTo: time)
-          .where('status', whereIn: ['confirmed', 'checked_in']).get();
+          .where('reservation.date',
+              isEqualTo: DateFormat('dd/MM/yyyy').format(date))
+          .where('reservation.time', isEqualTo: time)
+          .where('reservation.status',
+              whereIn: ['confirmed', 'checked_in']).get();
 
       // If no reservations found, table is available
       return snapshot.docs.isEmpty;
@@ -255,6 +347,32 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
     }
   }
 
+  // Build status indicator widget
+  Widget _buildStatusIndicator(String label, Color color, IconData icon) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: color,
+          size: 16,
+        ),
+        const SizedBox(width: 4),
+        TextWidget(
+          text: label,
+          fontSize: 12,
+          color: color,
+          fontFamily: 'Regular',
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _statusUpdateTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -336,6 +454,41 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Table Status Legend
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: plainWhite,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: ashGray.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextWidget(
+                            text: 'Table Status',
+                            fontSize: 16,
+                            color: textBlack,
+                            isBold: true,
+                            fontFamily: 'Bold',
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatusIndicator(
+                                  'Available', palmGreen, Icons.check_circle),
+                              _buildStatusIndicator(
+                                  'Reserved', bayanihanBlue, Icons.event),
+                              _buildStatusIndicator(
+                                  'Disabled', festiveRed, Icons.block),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     // Table Selection
                     TextWidget(
                       text: 'Select Table',
@@ -360,8 +513,38 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                       itemBuilder: (context, index) {
                         final table = _tables[index];
                         final isSelected = _selectedTableId == table['id'];
-                        final isAvailable =
-                            _tableAvailability[table['id']] ?? true;
+                        final status = _getTableStatus(table['id']);
+                        final isAvailable = status == 'Available';
+                        final isEnabled =
+                            _tableEnabledStatus[table['id']] ?? true;
+                        final reservation = _tableReservations[table['id']];
+
+                        Color statusColor;
+                        IconData statusIcon;
+                        String statusText;
+
+                        switch (status) {
+                          case 'Available':
+                            statusColor = palmGreen;
+                            statusIcon = Icons.check_circle;
+                            statusText = 'Available';
+                            break;
+                          case 'Reserved':
+                            statusColor = bayanihanBlue;
+                            statusIcon = Icons.event;
+                            statusText = 'Reserved';
+                            break;
+                          case 'Disabled':
+                            statusColor = festiveRed;
+                            statusIcon = Icons.block;
+                            statusText = 'Disabled';
+                            break;
+                          default:
+                            statusColor = ashGray;
+                            statusIcon = Icons.help;
+                            statusText = 'Unknown';
+                        }
+
                         return Card(
                           elevation: 3,
                           shape: RoundedRectangleBorder(
@@ -384,15 +567,12 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                 borderRadius: BorderRadius.circular(15),
                                 color: isSelected
                                     ? bayanihanBlue.withOpacity(0.1)
-                                    : isAvailable
+                                    : isEnabled
                                         ? plainWhite
                                         : ashGray.withOpacity(0.3),
                                 border: Border.all(
-                                  color: isSelected
-                                      ? bayanihanBlue
-                                      : isAvailable
-                                          ? palmGreen
-                                          : festiveRed,
+                                  color:
+                                      isSelected ? bayanihanBlue : statusColor,
                                   width: 2,
                                 ),
                               ),
@@ -408,7 +588,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                         fontSize: fontSize + 1,
                                         color: isSelected
                                             ? bayanihanBlue
-                                            : isAvailable
+                                            : isEnabled
                                                 ? textBlack
                                                 : charcoalGray,
                                         isBold: true,
@@ -417,14 +597,10 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                       Icon(
                                         isSelected
                                             ? Icons.check_circle
-                                            : isAvailable
-                                                ? Icons.event_available
-                                                : Icons.event_busy,
+                                            : statusIcon,
                                         color: isSelected
                                             ? bayanihanBlue
-                                            : isAvailable
-                                                ? palmGreen
-                                                : festiveRed,
+                                            : statusColor,
                                         size: 20,
                                       ),
                                     ],
@@ -440,7 +616,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                         size: 30,
                                         color: isSelected
                                             ? bayanihanBlue
-                                            : isAvailable
+                                            : isEnabled
                                                 ? textBlack
                                                 : charcoalGray,
                                       ),
@@ -452,7 +628,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                           size: 20,
                                           color: isSelected
                                               ? bayanihanBlue
-                                              : isAvailable
+                                              : isEnabled
                                                   ? textBlack
                                                   : charcoalGray,
                                         ),
@@ -461,7 +637,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                           size: 20,
                                           color: isSelected
                                               ? bayanihanBlue
-                                              : isAvailable
+                                              : isEnabled
                                                   ? textBlack
                                                   : charcoalGray,
                                         ),
@@ -472,7 +648,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                           size: 20,
                                           color: isSelected
                                               ? bayanihanBlue
-                                              : isAvailable
+                                              : isEnabled
                                                   ? textBlack
                                                   : charcoalGray,
                                         ),
@@ -481,7 +657,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                           size: 20,
                                           color: isSelected
                                               ? bayanihanBlue
-                                              : isAvailable
+                                              : isEnabled
                                                   ? textBlack
                                                   : charcoalGray,
                                         ),
@@ -490,7 +666,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                           size: 20,
                                           color: isSelected
                                               ? bayanihanBlue
-                                              : isAvailable
+                                              : isEnabled
                                                   ? textBlack
                                                   : charcoalGray,
                                         ),
@@ -499,7 +675,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                           size: 20,
                                           color: isSelected
                                               ? bayanihanBlue
-                                              : isAvailable
+                                              : isEnabled
                                                   ? textBlack
                                                   : charcoalGray,
                                         ),
@@ -511,22 +687,36 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                     text:
                                         'Table with ${table['capacity']} chairs',
                                     fontSize: fontSize - 1,
-                                    color: isAvailable
+                                    color: isEnabled
                                         ? charcoalGray
                                         : charcoalGray.withOpacity(0.6),
                                     fontFamily: 'Regular',
                                   ),
                                   const SizedBox(height: 6),
-                                  TextWidget(
-                                    text:
-                                        isAvailable ? 'Available' : 'Occupied',
-                                    fontSize: fontSize - 1,
-                                    color: isAvailable
-                                        ? bayanihanBlue
-                                        : charcoalGray,
-                                    isBold: true,
-                                    fontFamily: 'Bold',
-                                  ),
+                                  // Show reservation details if reserved
+                                  if (reservation != null) ...[
+                                    TextWidget(
+                                      text:
+                                          'Reserved by: ${reservation['name']}',
+                                      fontSize: fontSize - 2,
+                                      color: bayanihanBlue,
+                                      fontFamily: 'Regular',
+                                    ),
+                                    TextWidget(
+                                      text: 'Time: ${reservation['time']}',
+                                      fontSize: fontSize - 2,
+                                      color: bayanihanBlue,
+                                      fontFamily: 'Regular',
+                                    ),
+                                  ] else ...[
+                                    TextWidget(
+                                      text: statusText,
+                                      fontSize: fontSize - 1,
+                                      color: statusColor,
+                                      isBold: true,
+                                      fontFamily: 'Bold',
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
