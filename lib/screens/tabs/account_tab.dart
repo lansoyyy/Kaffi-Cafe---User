@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:kaffi_cafe/screens/chatsupport_screen.dart';
+import 'package:kaffi_cafe/screens/order_details_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/divider_widget.dart';
@@ -276,9 +277,9 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
                 const SizedBox(height: 18),
                 DividerWidget(),
-                // Order History
+                // Activity
                 TextWidget(
-                  text: 'Order History',
+                  text: 'Activity',
                   fontSize: 20,
                   color: textBlack,
                   isBold: true,
@@ -371,7 +372,7 @@ class _AccountScreenState extends State<AccountScreen> {
                             const SizedBox(height: 8),
                             TextWidget(
                               text: _selectedStatus == 'All'
-                                  ? 'Your order history will appear here'
+                                  ? 'Your activity will appear here'
                                   : 'No orders with status: $_selectedStatus',
                               fontSize: fontSize - 1,
                               color: charcoalGray,
@@ -397,172 +398,197 @@ class _AccountScreenState extends State<AccountScreen> {
                         final branch = orderData['branch'] ?? 'Unknown Branch';
                         final type = orderData['type'] ?? '';
 
-                        return Card(
-                          elevation: 4,
-                          margin: const EdgeInsets.only(bottom: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: Container(
-                            padding: EdgeInsets.all(padding),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              color: plainWhite,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: bayanihanBlue.withOpacity(0.1),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => OrderDetailsScreen(
+                                  orderData: orderData,
+                                  orderId: orderId,
                                 ),
-                              ],
+                              ),
+                            );
+                          },
+                          child: Card(
+                            elevation: 4,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Order header
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    TextWidget(
-                                      text: 'Order #${orderId.substring(0, 8)}',
-                                      fontSize: fontSize + 1,
-                                      color: textBlack,
-                                      isBold: true,
-                                      fontFamily: 'Bold',
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: _getStatusColor(status)
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: _getStatusColor(status),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: TextWidget(
-                                        text: status,
-                                        fontSize: fontSize - 2,
-                                        color: _getStatusColor(status),
+                            child: Container(
+                              padding: EdgeInsets.all(padding),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                color: plainWhite,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: bayanihanBlue.withOpacity(0.1),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Order header
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      TextWidget(
+                                        text:
+                                            'Order #${orderId.substring(0, 8)}',
+                                        fontSize: fontSize + 1,
+                                        color: textBlack,
                                         isBold: true,
                                         fontFamily: 'Bold',
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                // Order details
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.location_on_outlined,
-                                      size: 16,
-                                      color: charcoalGray,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: TextWidget(
-                                        text: '$branch',
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: _getStatusColor(status)
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: _getStatusColor(status),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: TextWidget(
+                                              text: status,
+                                              fontSize: fontSize - 2,
+                                              color: _getStatusColor(status),
+                                              isBold: true,
+                                              fontFamily: 'Bold',
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Icon(
+                                            Icons.arrow_forward_ios,
+                                            size: 14,
+                                            color: ashGray,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Order details
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.location_on_outlined,
+                                        size: 16,
+                                        color: charcoalGray,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: TextWidget(
+                                          text: '$branch',
+                                          fontSize: fontSize - 1,
+                                          color: charcoalGray,
+                                          fontFamily: 'Regular',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.access_time_outlined,
+                                        size: 16,
+                                        color: charcoalGray,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      TextWidget(
+                                        text: timestamp != null
+                                            ? _formatDate(timestamp)
+                                            : 'Unknown date',
                                         fontSize: fontSize - 1,
                                         color: charcoalGray,
                                         fontFamily: 'Regular',
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.access_time_outlined,
-                                      size: 16,
-                                      color: charcoalGray,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    TextWidget(
-                                      text: timestamp != null
-                                          ? _formatDate(timestamp)
-                                          : 'Unknown date',
-                                      fontSize: fontSize - 1,
-                                      color: charcoalGray,
-                                      fontFamily: 'Regular',
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                // Items list
-                                ...cartItems
-                                    .map((item) => Padding(
-                                          padding:
-                                              const EdgeInsets.only(bottom: 4),
-                                          child: Row(
-                                            children: [
-                                              Container(
-                                                width: 32,
-                                                height: 32,
-                                                decoration: BoxDecoration(
-                                                  color: bayanihanBlue
-                                                      .withOpacity(0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: Center(
-                                                  child: Icon(
-                                                    _getCategoryIcon(
-                                                        item['category']),
-                                                    size: 16,
-                                                    color: bayanihanBlue,
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Items list
+                                  ...cartItems
+                                      .map((item) => Padding(
+                                            padding: const EdgeInsets.only(
+                                                bottom: 4),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 32,
+                                                  height: 32,
+                                                  decoration: BoxDecoration(
+                                                    color: bayanihanBlue
+                                                        .withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: Center(
+                                                    child: Icon(
+                                                      _getCategoryIcon(
+                                                          item['category']),
+                                                      size: 16,
+                                                      color: bayanihanBlue,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: TextWidget(
-                                                  text:
-                                                      '${item['name']} x${item['quantity']}',
-                                                  fontSize: fontSize - 1,
-                                                  color: textBlack,
-                                                  fontFamily: 'Regular',
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: TextWidget(
+                                                    text:
+                                                        '${item['name']} x${item['quantity']}',
+                                                    fontSize: fontSize - 1,
+                                                    color: textBlack,
+                                                    fontFamily: 'Regular',
+                                                  ),
                                                 ),
-                                              ),
-                                              TextWidget(
-                                                text:
-                                                    '₱${(item['price'] * item['quantity']).toStringAsFixed(0)}',
-                                                fontSize: fontSize - 1,
-                                                color: sunshineYellow,
-                                                isBold: true,
-                                                fontFamily: 'Bold',
-                                              ),
-                                            ],
-                                          ),
-                                        ))
-                                    .toList(),
-                                const SizedBox(height: 8),
-                                // Total
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    TextWidget(
-                                      text: 'Total',
-                                      fontSize: fontSize + 1,
-                                      color: textBlack,
-                                      isBold: true,
-                                      fontFamily: 'Bold',
-                                    ),
-                                    TextWidget(
-                                      text: '₱${total.toStringAsFixed(0)}',
-                                      fontSize: fontSize + 1,
-                                      color: sunshineYellow,
-                                      isBold: true,
-                                      fontFamily: 'Bold',
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                                TextWidget(
+                                                  text:
+                                                      '₱${(item['price'] * item['quantity']).toStringAsFixed(0)}',
+                                                  fontSize: fontSize - 1,
+                                                  color: sunshineYellow,
+                                                  isBold: true,
+                                                  fontFamily: 'Bold',
+                                                ),
+                                              ],
+                                            ),
+                                          ))
+                                      .toList(),
+                                  const SizedBox(height: 8),
+                                  // Total
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      TextWidget(
+                                        text: 'Total',
+                                        fontSize: fontSize + 1,
+                                        color: textBlack,
+                                        isBold: true,
+                                        fontFamily: 'Bold',
+                                      ),
+                                      TextWidget(
+                                        text: '₱${total.toStringAsFixed(0)}',
+                                        fontSize: fontSize + 1,
+                                        color: sunshineYellow,
+                                        isBold: true,
+                                        fontFamily: 'Bold',
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );
