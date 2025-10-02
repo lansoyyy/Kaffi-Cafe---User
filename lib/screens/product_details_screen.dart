@@ -45,11 +45,19 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     'Less Ice',
   ];
 
+  bool get _isDrink {
+    final category = widget.product['category'] as String?;
+    return category == 'Coffee' || category == 'Non-Coffee Drinks';
+  }
+
   double get _totalPrice {
     double basePrice = widget.product['price'].toDouble();
-    double addShotPrice = _addShot ? 25.0 : 0.0;
-    double sizePrice = _selectedSize == 'Large' ? 15.0 : 0.0;
-    return basePrice + addShotPrice + sizePrice;
+    if (_isDrink) {
+      double addShotPrice = _addShot ? 25.0 : 0.0;
+      double sizePrice = _selectedSize == 'Large' ? 15.0 : 0.0;
+      return basePrice + addShotPrice + sizePrice;
+    }
+    return basePrice;
   }
 
   @override
@@ -158,66 +166,133 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Espresso Shots
-                    _buildSectionTitle('Espresso Shots'),
-                    const SizedBox(height: 12),
-                    ..._espressoOptions.map((espresso) => _buildRadioOption(
-                          title: espresso,
-                          subtitle: 'P 0.00',
-                          value: espresso,
-                          groupValue: _selectedEspresso,
-                          onChanged: (value) =>
-                              setState(() => _selectedEspresso = value!),
-                        )),
-                    const SizedBox(height: 8),
-                    _buildCheckboxOption(
-                      title: 'Add Shot',
-                      subtitle: '+P 25.00',
-                      value: _addShot,
-                      onChanged: (value) => setState(() => _addShot = value!),
-                    ),
+                    // Show customization options only for drinks
+                    if (_isDrink) ...[
+                      // Espresso Shots
+                      _buildSectionTitle('Espresso Shots'),
+                      const SizedBox(height: 12),
+                      ..._espressoOptions.map((espresso) => _buildRadioOption(
+                            title: espresso,
+                            subtitle: 'P 0.00',
+                            value: espresso,
+                            groupValue: _selectedEspresso,
+                            onChanged: (value) =>
+                                setState(() => _selectedEspresso = value!),
+                          )),
+                      const SizedBox(height: 8),
+                      _buildCheckboxOption(
+                        title: 'Add Shot',
+                        subtitle: '+P 25.00',
+                        value: _addShot,
+                        onChanged: (value) => setState(() => _addShot = value!),
+                      ),
 
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Coffee Size
-                    _buildSectionTitle('Coffee Size - Choose one'),
-                    const SizedBox(height: 12),
-                    ..._sizeOptions.map((size) => _buildRadioOption(
-                          title: size,
-                          subtitle: size == 'Large' ? '+P 15.00' : 'P 0.00',
-                          value: size,
-                          groupValue: _selectedSize,
-                          onChanged: (value) =>
-                              setState(() => _selectedSize = value!),
-                        )),
+                      // Coffee Size
+                      _buildSectionTitle('Coffee Size - Choose one'),
+                      const SizedBox(height: 12),
+                      ..._sizeOptions.map((size) => _buildRadioOption(
+                            title: size,
+                            subtitle: size == 'Large' ? '+P 15.00' : 'P 0.00',
+                            value: size,
+                            groupValue: _selectedSize,
+                            onChanged: (value) =>
+                                setState(() => _selectedSize = value!),
+                          )),
 
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Sweetness Level
-                    _buildSectionTitle('Sweetness Level - Choose one'),
-                    const SizedBox(height: 12),
-                    ..._sweetnessLevels.map((sweetness) => _buildRadioOption(
-                          title: sweetness,
-                          subtitle: 'P 0.00',
-                          value: sweetness,
-                          groupValue: _selectedSweetness,
-                          onChanged: (value) =>
-                              setState(() => _selectedSweetness = value!),
-                        )),
+                      // Sweetness Level
+                      _buildSectionTitle('Sweetness Level - Choose one'),
+                      const SizedBox(height: 12),
+                      ..._sweetnessLevels.map((sweetness) => _buildRadioOption(
+                            title: sweetness,
+                            subtitle: 'P 0.00',
+                            value: sweetness,
+                            groupValue: _selectedSweetness,
+                            onChanged: (value) =>
+                                setState(() => _selectedSweetness = value!),
+                          )),
 
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Ice Level
-                    _buildSectionTitle('Ice Level'),
-                    const SizedBox(height: 12),
-                    ..._iceLevels.map((ice) => _buildRadioOption(
-                          title: ice,
-                          subtitle: 'P 0.00',
-                          value: ice,
-                          groupValue: _selectedIce,
-                          onChanged: (value) =>
-                              setState(() => _selectedIce = value!),
-                        )),
+                      // Ice Level
+                      _buildSectionTitle('Ice Level'),
+                      const SizedBox(height: 12),
+                      ..._iceLevels.map((ice) => _buildRadioOption(
+                            title: ice,
+                            subtitle: 'P 0.00',
+                            value: ice,
+                            groupValue: _selectedIce,
+                            onChanged: (value) =>
+                                setState(() => _selectedIce = value!),
+                          )),
+                    ] else ...[
+                      // For non-drink items, show the description
+                      if (widget.product['description'] != null &&
+                          widget.product['description']
+                              .toString()
+                              .isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: bayanihanBlue.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: bayanihanBlue.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextWidget(
+                                text: 'Description',
+                                fontSize: 16,
+                                fontFamily: 'Bold',
+                                color: textBlack,
+                              ),
+                              const SizedBox(height: 8),
+                              TextWidget(
+                                text: widget.product['description'],
+                                fontSize: 14,
+                                color: charcoalGray,
+                                fontFamily: 'Regular',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        // Fallback if no description is available
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: bayanihanBlue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: bayanihanBlue,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextWidget(
+                                  text:
+                                      'This item is served as is. No customization available.',
+                                  fontSize: 14,
+                                  color: textBlack,
+                                  fontFamily: 'Regular',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
 
                     const SizedBox(height: 100), // Space for bottom button
                   ],
@@ -281,21 +356,25 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 label:
                     'ADD TO CART - P ${(_totalPrice * _quantity).toStringAsFixed(2)}',
                 onPressed: () {
-                  // Create customized item
-                  Map<String, dynamic> customizedItem = {
+                  // Create item with or without customizations
+                  Map<String, dynamic> item = {
                     'name': widget.product['name'],
                     'price': _totalPrice,
                     'quantity': _quantity,
-                    'customizations': {
+                  };
+
+                  // Add customizations only for drinks
+                  if (_isDrink) {
+                    item['customizations'] = {
                       'espresso': _selectedEspresso,
                       'addShot': _addShot,
                       'size': _selectedSize,
                       'sweetness': _selectedSweetness,
                       'ice': _selectedIce,
-                    }
-                  };
+                    };
+                  }
 
-                  widget.addToCart(customizedItem, _quantity);
+                  widget.addToCart(item, _quantity);
                   Navigator.pop(context);
 
                   ScaffoldMessenger.of(context).showSnackBar(

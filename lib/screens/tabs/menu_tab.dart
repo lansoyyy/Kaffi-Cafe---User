@@ -5,6 +5,7 @@ import 'package:kaffi_cafe/widgets/divider_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kaffi_cafe/screens/product_details_screen.dart';
+import 'package:get_storage/get_storage.dart';
 
 class MenuTab extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -68,7 +69,7 @@ class _MenuTabState extends State<MenuTab> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth = screenWidth * 0.42;
+    final cardWidth = screenWidth * 0.45;
     final cardHeight = screenWidth * 0.55;
     final fontSize = screenWidth * 0.035;
     final padding = screenWidth * 0.03;
@@ -106,7 +107,7 @@ class _MenuTabState extends State<MenuTab> {
                     SizedBox(width: 12),
                     Container(
                       decoration: BoxDecoration(
-                        color: (widget.selectedType == 'Pickup')
+                        color: (widget.selectedType != null)
                             ? bayanihanBlue
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(22),
@@ -115,9 +116,9 @@ class _MenuTabState extends State<MenuTab> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 7),
                         child: TextWidget(
-                          text: 'Pickup',
+                          text: widget.selectedType ?? 'Select Type',
                           fontSize: 15,
-                          color: (widget.selectedType == 'Pickup')
+                          color: (widget.selectedType != null)
                               ? Colors.white
                               : bayanihanBlue,
                           fontFamily: 'Bold',
@@ -291,13 +292,6 @@ class _MenuTabState extends State<MenuTab> {
                                         color: textBlack,
                                         isBold: true,
                                         fontFamily: 'Bold',
-                                        maxLines: 1,
-                                      ),
-                                      TextWidget(
-                                        text: data['description'] ?? '',
-                                        fontSize: fontSize - 2,
-                                        color: charcoalGray,
-                                        fontFamily: 'Regular',
                                         maxLines: 1,
                                       ),
                                       const SizedBox(height: 5),

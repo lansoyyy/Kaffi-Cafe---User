@@ -38,38 +38,6 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
   List<String> _availableTimeSlots = [];
   bool _isLoading = true;
 
-  // Show date picker
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: ColorScheme.light(
-              primary: bayanihanBlue,
-              onPrimary: plainWhite,
-              surface: plainWhite,
-              onSurface: textBlack,
-            ),
-            dialogBackgroundColor: plainWhite,
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-        _selectedTime = null; // Reset time when date changes
-        _selectedTableId = null; // Reset table when date changes
-        _generateTimeSlots(); // Regenerate time slots for new date
-      });
-    }
-  }
-
   // Initialize the reservation screen
   @override
   void initState() {
@@ -386,7 +354,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
                         childAspectRatio:
-                            screenWidth * 0.45 / (screenWidth * 0.35),
+                            screenWidth * 0.4 / (screenWidth * 0.35),
                       ),
                       itemCount: _tables.length,
                       itemBuilder: (context, index) {
@@ -462,9 +430,86 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 6),
+                                  // Table and chair icons
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // Table icon
+                                      Icon(
+                                        Icons.table_restaurant,
+                                        size: 30,
+                                        color: isSelected
+                                            ? bayanihanBlue
+                                            : isAvailable
+                                                ? textBlack
+                                                : charcoalGray,
+                                      ),
+                                      // Chair icons based on capacity
+                                      if (table['capacity'] == 2) ...[
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          Icons.chair,
+                                          size: 20,
+                                          color: isSelected
+                                              ? bayanihanBlue
+                                              : isAvailable
+                                                  ? textBlack
+                                                  : charcoalGray,
+                                        ),
+                                        Icon(
+                                          Icons.chair,
+                                          size: 20,
+                                          color: isSelected
+                                              ? bayanihanBlue
+                                              : isAvailable
+                                                  ? textBlack
+                                                  : charcoalGray,
+                                        ),
+                                      ] else if (table['capacity'] == 4) ...[
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          Icons.chair,
+                                          size: 20,
+                                          color: isSelected
+                                              ? bayanihanBlue
+                                              : isAvailable
+                                                  ? textBlack
+                                                  : charcoalGray,
+                                        ),
+                                        Icon(
+                                          Icons.chair,
+                                          size: 20,
+                                          color: isSelected
+                                              ? bayanihanBlue
+                                              : isAvailable
+                                                  ? textBlack
+                                                  : charcoalGray,
+                                        ),
+                                        Icon(
+                                          Icons.chair,
+                                          size: 20,
+                                          color: isSelected
+                                              ? bayanihanBlue
+                                              : isAvailable
+                                                  ? textBlack
+                                                  : charcoalGray,
+                                        ),
+                                        Icon(
+                                          Icons.chair,
+                                          size: 20,
+                                          color: isSelected
+                                              ? bayanihanBlue
+                                              : isAvailable
+                                                  ? textBlack
+                                                  : charcoalGray,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
                                   TextWidget(
                                     text:
-                                        'Capacity: ${table['capacity']} guests',
+                                        'Table with ${table['capacity']} chairs',
                                     fontSize: fontSize - 1,
                                     color: isAvailable
                                         ? charcoalGray
@@ -496,9 +541,9 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                         children: [
                           const SizedBox(height: 18),
                           DividerWidget(),
-                          // Date Selection
+                          // Date Display
                           TextWidget(
-                            text: 'Select Date',
+                            text: 'Reservation Date',
                             fontSize: 20,
                             color: textBlack,
                             isBold: true,
@@ -525,9 +570,14 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                 ],
                               ),
                               child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
+                                  Icon(
+                                    Icons.calendar_today,
+                                    color: bayanihanBlue,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
                                   TextWidget(
                                     text:
                                         '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
@@ -535,16 +585,6 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                                     color: textBlack,
                                     isBold: true,
                                     fontFamily: 'Bold',
-                                  ),
-                                  ButtonWidget(
-                                    label: 'Pick Date',
-                                    onPressed: () => _selectDate(context),
-                                    color: bayanihanBlue,
-                                    textColor: plainWhite,
-                                    fontSize: fontSize,
-                                    height: 40,
-                                    radius: 12,
-                                    width: 100,
                                   ),
                                 ],
                               ),
@@ -554,7 +594,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                           DividerWidget(),
                           // Time Selection
                           TextWidget(
-                            text: 'Select Time',
+                            text: 'Select Available Time',
                             fontSize: 20,
                             color: textBlack,
                             isBold: true,
@@ -604,7 +644,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                           ),
                           const SizedBox(height: 18),
                           DividerWidget(),
-                          // Number of Guests
+                          // Number of Guests Display
                           TextWidget(
                             text: 'Number of Guests',
                             fontSize: 20,
@@ -614,78 +654,44 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                             letterSpacing: 1.2,
                           ),
                           const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              ButtonWidget(
-                                label: '-',
-                                onPressed: () {
-                                  setState(() {
-                                    if (_numberOfGuests > 1) _numberOfGuests--;
-                                  });
-                                },
-                                color: ashGray,
-                                textColor: textBlack,
-                                fontSize: fontSize,
-                                height: 36,
-                                width: 50,
-                                radius: 10,
+                          Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.all(16.0),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(15),
+                                color: plainWhite,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: bayanihanBlue.withOpacity(0.1),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 12),
-                              TextWidget(
-                                text:
-                                    '$_numberOfGuests Guest${_numberOfGuests > 1 ? 's' : ''}',
-                                fontSize: fontSize + 1,
-                                color: textBlack,
-                                fontFamily: 'Regular',
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.people,
+                                    color: bayanihanBlue,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  TextWidget(
+                                    text:
+                                        '$_numberOfGuests Guest${_numberOfGuests > 1 ? 's' : ''}',
+                                    fontSize: fontSize + 1,
+                                    color: textBlack,
+                                    isBold: true,
+                                    fontFamily: 'Bold',
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 12),
-                              ButtonWidget(
-                                label: '+',
-                                onPressed: () {
-                                  setState(() {
-                                    // Get selected table capacity
-                                    if (_selectedTableId != null) {
-                                      final selectedTable = _tables.firstWhere(
-                                          (table) =>
-                                              table['id'] == _selectedTableId);
-                                      final maxCapacity =
-                                          selectedTable['capacity'];
-
-                                      // Only increment if below max capacity
-                                      if (_numberOfGuests < maxCapacity) {
-                                        _numberOfGuests++;
-                                      } else {
-                                        // Show message that max capacity reached
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: TextWidget(
-                                              text:
-                                                  'Maximum capacity for this table is $maxCapacity guests',
-                                              fontSize: 14,
-                                              color: plainWhite,
-                                              fontFamily: 'Regular',
-                                            ),
-                                            backgroundColor: bayanihanBlue,
-                                            duration:
-                                                const Duration(seconds: 2),
-                                          ),
-                                        );
-                                      }
-                                    } else {
-                                      _numberOfGuests++;
-                                    }
-                                  });
-                                },
-                                color: bayanihanBlue,
-                                textColor: plainWhite,
-                                fontSize: fontSize,
-                                height: 36,
-                                width: 50,
-                                radius: 10,
-                              ),
-                            ],
+                            ),
                           ),
                           const SizedBox(height: 18),
                           // Confirm Reservation Button

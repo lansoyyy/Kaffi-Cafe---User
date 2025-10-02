@@ -38,17 +38,17 @@ class _AccountScreenState extends State<AccountScreen> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'completed':
-        return Colors.green;
+        return palmGreen; // Green
       case 'pending':
-        return Colors.orange;
+        return accentOrange; // Orange
       case 'preparing':
-        return Colors.blue;
+        return palmGreen; // Green
       case 'ready':
         return Colors.purple;
       case 'cancelled':
-        return Colors.red;
+        return festiveRed; // Red
       default:
-        return charcoalGray;
+        return textBlack; // Black
     }
   }
 

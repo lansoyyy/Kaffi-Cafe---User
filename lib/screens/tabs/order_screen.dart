@@ -57,6 +57,8 @@ class _OrderScreenState extends State<OrderScreen> {
   bool _voucherValid = false;
   bool _isBranchOnline = false;
   bool _isLoadingBranchStatus = true;
+  final TextEditingController _specialRemarksController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -261,11 +263,25 @@ class _OrderScreenState extends State<OrderScreen> {
                 border: Border.all(color: ashGray.withOpacity(0.3)),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: TextWidget(
-                text: 'Tell us about your special requests...',
-                fontSize: 14,
-                fontFamily: 'Regular',
-                color: charcoalGray,
+              child: TextField(
+                controller: _specialRemarksController,
+                decoration: InputDecoration(
+                  hintText: widget.selectedType == 'Dine in'
+                      ? 'Dine-in order - Table will be assigned upon arrival'
+                      : 'Tell us about your special requests...',
+                  hintStyle: TextStyle(
+                    color: charcoalGray,
+                    fontSize: 14,
+                    fontFamily: 'Regular',
+                  ),
+                  border: InputBorder.none,
+                ),
+                style: TextStyle(
+                  color: textBlack,
+                  fontSize: 14,
+                  fontFamily: 'Regular',
+                ),
+                maxLines: 3,
               ),
             ),
 
@@ -867,13 +883,26 @@ class _OrderScreenState extends State<OrderScreen> {
           '${box.read('user')?['given_name']} ${box.read('user')?['family_name']}',
       'buyer':
           '${box.read('user')?['given_name']} ${box.read('user')?['family_name']}',
-      'status': 'Pending',
+      'status': widget.selectedType == 'Dine in' ? 'Preparing' : 'Pending',
       'orderType': widget.selectedType!,
       'branch': widget.selectedBranch!,
       'total': total,
       'userId': box.read('user')?['email'],
       'paymentMethod': paymentMethod,
       'timestamp': FieldValue.serverTimestamp(),
+      'specialRemarks': _specialRemarksController.text.isNotEmpty
+          ? _specialRemarksController.text
+          : (widget.selectedType == 'Dine in'
+              ? 'Dine-in order - Table will be assigned upon arrival'
+              : ''),
+      // Add reservation details if it's a dine-in order
+      if (widget.selectedType == 'Dine in') ...{
+        'reservationDate': _storage.read('reservationDate'),
+        'reservationTime': _storage.read('reservationTime'),
+        'reservationTableId': _storage.read('reservationTableId'),
+        'reservationTableName': _storage.read('reservationTableName'),
+        'reservationGuests': _storage.read('reservationGuests'),
+      },
       'items': widget.cartItems
           .map((item) => {
                 'name': item['name'],
@@ -888,7 +917,6 @@ class _OrderScreenState extends State<OrderScreen> {
     await _firestore.collection('orders').add(orderData);
 
     // Update user points
-
     final userDoc =
         _firestore.collection('users').doc(box.read('user')?['email']);
     final pointsToEarn = (total ~/ 10).toInt();

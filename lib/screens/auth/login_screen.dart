@@ -372,7 +372,7 @@ class _LoginScreenState extends State<LoginScreen> {
               // Sign Up Button
               Center(
                 child: ButtonWidget(
-                  label: 'Get Started',
+                  label: 'Login with gmail account',
                   onPressed: () async {
                     final credentials = await auth0
                         .webAuthentication(scheme: 'com.algovision.kafficafe')

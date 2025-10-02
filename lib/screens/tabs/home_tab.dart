@@ -354,37 +354,22 @@ class _HomeTabState extends State<HomeTab> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(
-                                width: 80,
-                                child: TextWidget(
-                                  text: data['name'] ?? 'Product',
-                                  fontSize: 16,
-                                  fontFamily: 'Medium',
-                                  color: Colors.white,
-                                  maxLines: 1,
-                                ),
-                              ),
-                              SizedBox(
-                                width: 80,
-                                child: TextWidget(
-                                  text: data['description'] ?? 'Delicious item',
-                                  fontSize: 11,
-                                  fontFamily: 'Regular',
-                                  color: Colors.white,
-                                  maxLines: 2,
-                                ),
-                              ),
-                            ],
+                          SizedBox(
+                            width: 80,
+                            child: TextWidget(
+                              text: data['name'] ?? 'Product',
+                              fontSize: 16,
+                              fontFamily: 'Medium',
+                              color: Colors.white,
+                              maxLines: 1,
+                            ),
                           ),
                           TextWidget(
                             text:
                                 '₱${(data['price'] as num?)?.toStringAsFixed(0) ?? '0'}',
                             fontSize: 22,
                             fontFamily: 'Bold',
-                            color: sunshineYellow,
+                            color: bayanihanBlue,
                             maxLines: 1,
                           ),
                         ],
