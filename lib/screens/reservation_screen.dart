@@ -240,6 +240,24 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
   Future<void> _createReservation() async {
     if (_selectedTableId == null || _selectedTime == null) return;
 
+    // Validate that number of guests doesn't exceed table capacity
+    final maxGuests = _getMaxGuests();
+    if (_numberOfGuests > maxGuests) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: TextWidget(
+            text: 'Number of guests exceeds table capacity ($maxGuests)',
+            fontSize: 16,
+            color: plainWhite,
+            fontFamily: 'Regular',
+          ),
+          backgroundColor: festiveRed,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     try {
       // Get selected table details
       final selectedTable =
@@ -278,7 +296,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
         SnackBar(
           content: TextWidget(
             text:
-                'Reservation confirmed for ${selectedTable['name']} at $_selectedTime on ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                'Reservation confirmed for ${selectedTable['name']} at $_selectedTime on ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year} for $_numberOfGuests guest${_numberOfGuests > 1 ? 's' : ''}',
             fontSize: 16,
             color: plainWhite,
             fontFamily: 'Regular',
@@ -361,6 +379,154 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
           fontFamily: 'Regular',
         ),
       ],
+    );
+  }
+
+  // Helper method to get the maximum number of guests for the selected table
+  int _getMaxGuests() {
+    if (_selectedTableId == null) return 0;
+    final selectedTable = _tables.firstWhere(
+        (table) => table['id'] == _selectedTableId,
+        orElse: () => {'capacity': 0});
+    return selectedTable['capacity'] as int;
+  }
+
+  // Widget for guest selection
+  Widget _buildGuestSelection() {
+    final maxGuests = _getMaxGuests();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final fontSize = screenWidth * 0.036;
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          color: plainWhite,
+          boxShadow: [
+            BoxShadow(
+              color: bayanihanBlue.withOpacity(0.1),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.people,
+                  color: bayanihanBlue,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                TextWidget(
+                  text:
+                      '$_numberOfGuests Guest${_numberOfGuests > 1 ? 's' : ''}',
+                  fontSize: fontSize + 1,
+                  color: textBlack,
+                  isBold: true,
+                  fontFamily: 'Bold',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Guest count selector
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Decrease button
+                GestureDetector(
+                  onTap: _numberOfGuests > 1
+                      ? () {
+                          setState(() {
+                            _numberOfGuests--;
+                          });
+                        }
+                      : null,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _numberOfGuests > 1
+                          ? bayanihanBlue
+                          : ashGray.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      Icons.remove,
+                      color: _numberOfGuests > 1 ? plainWhite : ashGray,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                // Guest count display
+                Container(
+                  width: 60,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: bayanihanBlue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: bayanihanBlue,
+                      width: 1,
+                    ),
+                  ),
+                  child: Center(
+                    child: TextWidget(
+                      text: '$_numberOfGuests',
+                      fontSize: fontSize + 2,
+                      color: bayanihanBlue,
+                      isBold: true,
+                      fontFamily: 'Bold',
+                    ),
+                  ),
+                ),
+                // Increase button
+                GestureDetector(
+                  onTap: _numberOfGuests < maxGuests
+                      ? () {
+                          setState(() {
+                            _numberOfGuests++;
+                          });
+                        }
+                      : null,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _numberOfGuests < maxGuests
+                          ? bayanihanBlue
+                          : ashGray.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      Icons.add,
+                      color: _numberOfGuests < maxGuests ? plainWhite : ashGray,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Capacity warning
+            if (_numberOfGuests >= maxGuests && maxGuests > 0)
+              TextWidget(
+                text: 'Maximum capacity for this table: $maxGuests guests',
+                fontSize: fontSize - 1,
+                color: festiveRed,
+                fontFamily: 'Regular',
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -827,7 +993,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                           ),
                           const SizedBox(height: 18),
                           DividerWidget(),
-                          // Number of Guests Display
+                          // Number of Guests Selection
                           TextWidget(
                             text: 'Number of Guests',
                             fontSize: 20,
@@ -837,45 +1003,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                             letterSpacing: 1.2,
                           ),
                           const SizedBox(height: 12),
-                          Card(
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.all(16.0),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(15),
-                                color: plainWhite,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: bayanihanBlue.withOpacity(0.1),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.people,
-                                    color: bayanihanBlue,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  TextWidget(
-                                    text:
-                                        '$_numberOfGuests Guest${_numberOfGuests > 1 ? 's' : ''}',
-                                    fontSize: fontSize + 1,
-                                    color: textBlack,
-                                    isBold: true,
-                                    fontFamily: 'Bold',
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                          _buildGuestSelection(),
                           const SizedBox(height: 18),
                           // Confirm Reservation Button
                           Center(
