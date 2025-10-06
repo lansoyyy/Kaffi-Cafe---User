@@ -205,16 +205,29 @@ class _RewardScreenState extends State<RewardScreen> {
                       final voucherCode = data['voucherCode'] ?? '';
                       final pointsSpent = data['pointsSpent'] ?? 0;
                       final timestamp = data['timestamp'] as Timestamp?;
+                      final isUsed = data['isUsed'] ?? false;
+                      final status = data['status'] ?? 'active';
+                      final usedAt = data['usedAt'] as Timestamp?;
+                      final usedInOrder = data['usedInOrder'] ?? '';
                       final dateStr = timestamp != null
                           ? '${timestamp.toDate().day}/${timestamp.toDate().month}/${timestamp.toDate().year}'
                           : 'Unknown date';
+                      final usedDateStr = usedAt != null
+                          ? '${usedAt.toDate().day}/${usedAt.toDate().month}/${usedAt.toDate().year}'
+                          : '';
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: ashGray.withOpacity(0.3)),
+                          border: Border.all(
+                            color: isUsed || status == 'used'
+                                ? festiveRed.withOpacity(0.3)
+                                : bayanihanBlue.withOpacity(0.3),
+                            width: 1.0,
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -222,22 +235,57 @@ class _RewardScreenState extends State<RewardScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: bayanihanBlue.withOpacity(0.1),
+                                color: isUsed || status == 'used'
+                                    ? festiveRed.withOpacity(0.1)
+                                    : bayanihanBlue.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(Icons.card_giftcard,
-                                  color: bayanihanBlue, size: 20),
+                              child: Icon(
+                                isUsed || status == 'used'
+                                    ? Icons.check_circle
+                                    : Icons.card_giftcard,
+                                color: isUsed || status == 'used'
+                                    ? festiveRed
+                                    : bayanihanBlue,
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  TextWidget(
-                                    text: voucherName,
-                                    fontSize: 14,
-                                    color: textBlack,
-                                    fontFamily: 'Bold',
+                                  Row(
+                                    children: [
+                                      TextWidget(
+                                        text: voucherName,
+                                        fontSize: 14,
+                                        color: textBlack,
+                                        fontFamily: 'Bold',
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isUsed || status == 'used'
+                                              ? festiveRed.withOpacity(0.1)
+                                              : palmGreen.withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: TextWidget(
+                                          text: isUsed || status == 'used'
+                                              ? 'USED'
+                                              : 'ACTIVE',
+                                          fontSize: 10,
+                                          color: isUsed || status == 'used'
+                                              ? festiveRed
+                                              : palmGreen,
+                                          fontFamily: 'Bold',
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   TextWidget(
                                     text: 'Code: $voucherCode',
@@ -252,6 +300,21 @@ class _RewardScreenState extends State<RewardScreen> {
                                     color: charcoalGray,
                                     fontFamily: 'Regular',
                                   ),
+                                  if (isUsed || status == 'used') ...[
+                                    TextWidget(
+                                      text: 'Used in order: $usedInOrder',
+                                      fontSize: 11,
+                                      color: festiveRed,
+                                      fontFamily: 'Bold',
+                                    ),
+                                    if (usedDateStr.isNotEmpty)
+                                      TextWidget(
+                                        text: 'Used on: $usedDateStr',
+                                        fontSize: 11,
+                                        color: charcoalGray,
+                                        fontFamily: 'Regular',
+                                      ),
+                                  ],
                                 ],
                               ),
                             ),

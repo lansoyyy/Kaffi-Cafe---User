@@ -19,7 +19,6 @@ class SeatReservationScreen extends StatefulWidget {
 class _SeatReservationScreenState extends State<SeatReservationScreen> {
   final GetStorage _storage = GetStorage();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Tables configuration (3 tables with 2 seats, 2 tables with 4 seats)
   final List<Map<String, dynamic>> _tables = [
@@ -158,12 +157,12 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
     // Last slot: 10:00-10:59 PM
     for (int hour = 7; hour <= 22; hour++) {
       // Skip past hours for today
-      if (_selectedDate.day == now.day &&
-          _selectedDate.month == now.month &&
-          _selectedDate.year == now.year &&
-          hour <= now.hour) {
-        continue;
-      }
+      // if (_selectedDate.day == now.day &&
+      //     _selectedDate.month == now.month &&
+      //     _selectedDate.year == now.year &&
+      //     hour <= now.hour) {
+      //   continue;
+      // }
 
       // Format hour for 12-hour clock
       String period = hour < 12 ? 'AM' : 'PM';
@@ -212,7 +211,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
 
   // Update table availability based on selected date and time
   Future<void> _updateTableAvailability() async {
-    if (_selectedTime == null) return;
+    if (_selectedTime == null || _selectedTableId == null) return;
 
     setState(() {
       _isLoading = true;
@@ -236,14 +235,12 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
     });
   }
 
+  final box = GetStorage();
   // Create a reservation in Firestore
   Future<void> _createReservation() async {
     if (_selectedTableId == null || _selectedTime == null) return;
 
     try {
-      final user = _auth.currentUser;
-      if (user == null) return;
-
       // Get selected table details
       final selectedTable =
           _tables.firstWhere((table) => table['id'] == _selectedTableId);
@@ -254,8 +251,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
 
       // Create reservation document
       await _firestore.collection('reservations').add({
-        'userId': user.uid,
-        'userEmail': user.email,
+        'userId': box.read('user')['email'],
+        'userEmail': box.read('user')['email'],
         'tableId': _selectedTableId,
         'tableName': selectedTable['name'],
         'tableCapacity': selectedTable['capacity'],
@@ -291,8 +288,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
         ),
       );
 
-      // Navigate back to home screen with result to switch to menu tab
-      Navigator.pop(context, 'goToMenu');
+      // Navigate back to home screen with result to switch to activity tab
+      Navigator.pop(context, 'goToActivity');
     } catch (e) {
       print('Error creating reservation: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -379,12 +376,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
     final fontSize = screenWidth * 0.036;
     final padding = screenWidth * 0.035;
 
-    // Update table availability when date or time changes
-    if (_selectedDate != null && _selectedTime != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _updateTableAvailability();
-      });
-    }
+    // Note: Table availability is now only updated when a time is selected
+    // to prevent infinite loading loops
 
     return Scaffold(
       appBar: AppBar(

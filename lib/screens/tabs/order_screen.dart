@@ -51,6 +51,7 @@ class _OrderScreenState extends State<OrderScreen> {
   final GetStorage _storage = GetStorage();
   String _selectedPaymentMethod = 'GCash';
   String _voucherCode = '';
+  String? _voucherId; // Store the voucher ID for marking as used
   double _discount = 0.0;
   int _pointsToEarn = 0;
   String _voucherMessage = '';
@@ -672,17 +673,20 @@ class _OrderScreenState extends State<OrderScreen> {
     }
 
     final _firestore = FirebaseFirestore.instance;
+    final userEmail = box.read('user')?['email'];
 
     try {
-      // Query Firestore for the voucher code
+      // Query Firestore for the voucher code in voucher_redemptions collection
       final voucherQuery = await _firestore
-          .collection('voucher')
-          .where('code', isEqualTo: _voucherCode.toUpperCase())
+          .collection('voucher_redemptions')
+          .where('voucherCode', isEqualTo: _voucherCode.toUpperCase())
+          .where('userId', isEqualTo: userEmail)
           .get();
 
       if (voucherQuery.docs.isEmpty) {
         setState(() {
-          _voucherMessage = 'Invalid voucher code';
+          _voucherMessage =
+              'Invalid voucher code or you don\'t own this voucher';
           _voucherValid = false;
           _discount = 0.0;
         });
@@ -690,7 +694,30 @@ class _OrderScreenState extends State<OrderScreen> {
       }
 
       final voucherData = voucherQuery.docs.first.data();
-      final discountAmount = voucherData['discount'] ?? 0;
+      final voucherStatus = voucherData['status'] ?? 'active';
+      final isUsed = voucherData['isUsed'] ?? false;
+      final discountAmount = voucherData['voucherValue'] ?? 0;
+      final voucherId = voucherQuery.docs.first.id;
+
+      // Check if voucher is already used
+      if (isUsed || voucherStatus == 'used') {
+        setState(() {
+          _voucherMessage = 'This voucher has already been used';
+          _voucherValid = false;
+          _discount = 0.0;
+        });
+        return;
+      }
+
+      // Check if voucher is active
+      if (voucherStatus != 'active') {
+        setState(() {
+          _voucherMessage = 'This voucher is not active';
+          _voucherValid = false;
+          _discount = 0.0;
+        });
+        return;
+      }
 
       // Apply the discount
       setState(() {
@@ -698,6 +725,7 @@ class _OrderScreenState extends State<OrderScreen> {
         _voucherMessage =
             'Voucher applied! You saved P${_discount.toStringAsFixed(2)}';
         _voucherValid = true;
+        _voucherId = voucherId; // Store the voucher ID for later use
       });
     } catch (e) {
       setState(() {
@@ -711,6 +739,7 @@ class _OrderScreenState extends State<OrderScreen> {
   void _removeVoucher() {
     setState(() {
       _voucherCode = '';
+      _voucherId = null;
       _discount = 0.0;
       _voucherMessage = '';
       _voucherValid = false;
@@ -896,6 +925,11 @@ class _OrderScreenState extends State<OrderScreen> {
           : (widget.selectedType == 'Dine in'
               ? 'Dine-in order - Table will be assigned upon arrival'
               : ''),
+      // Add voucher information if a voucher was used
+      if (_voucherId != null && _voucherValid) ...{
+        'voucherCode': _voucherCode,
+        'voucherDiscount': _discount,
+      },
       // Add reservation details if it's a dine-in order
       if (widget.selectedType == 'Dine in') ...{
         'reservationDate': _storage.read('reservationDate'),
@@ -916,6 +950,19 @@ class _OrderScreenState extends State<OrderScreen> {
 
     // Add order to Firestore
     await _firestore.collection('orders').add(orderData);
+
+    // Mark voucher as used if one was applied
+    if (_voucherId != null && _voucherValid) {
+      await _firestore
+          .collection('voucher_redemptions')
+          .doc(_voucherId)
+          .update({
+        'isUsed': true,
+        'status': 'used',
+        'usedAt': FieldValue.serverTimestamp(),
+        'usedInOrder': orderReference,
+      });
+    }
 
     // Update user points
     final userDoc =

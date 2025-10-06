@@ -51,17 +51,57 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addToCart(Map<String, dynamic> item, int quantity) {
-    final index =
-        _cartItems.indexWhere((cartItem) => cartItem['name'] == item['name']);
+    // Check if an item with the same name AND customizations already exists in cart
+    final existingIndex = _cartItems.indexWhere((cartItem) {
+      if (cartItem['name'] != item['name']) return false;
+
+      // If both items have customizations, check if they match
+      if (cartItem.containsKey('customizations') &&
+          item.containsKey('customizations')) {
+        final cartCustomizations =
+            cartItem['customizations'] as Map<String, dynamic>? ?? {};
+        final itemCustomizations =
+            item['customizations'] as Map<String, dynamic>? ?? {};
+
+        // Convert maps to strings for comparison
+        final cartCustomizationsStr = cartCustomizations.toString();
+        final itemCustomizationsStr = itemCustomizations.toString();
+
+        return cartCustomizationsStr == itemCustomizationsStr;
+      }
+
+      // If only one has customizations, they don't match
+      return !(cartItem.containsKey('customizations') ||
+          item.containsKey('customizations'));
+    });
+
     setState(() {
-      if (index >= 0) {
-        _cartItems[index]['quantity'] += quantity;
+      if (existingIndex >= 0) {
+        // Update quantity of existing item
+        _cartItems[existingIndex]['quantity'] += quantity;
       } else {
-        _cartItems.add({
-          'name': item['name'],
-          'price': item['price'],
-          'quantity': quantity,
-        });
+        // Add new item to cart with all its properties including customizations
+        final Map<String, dynamic> newItem = Map<String, dynamic>.from(item);
+        newItem['quantity'] = quantity;
+
+        // Ensure the item has all required fields
+        if (!newItem.containsKey('name')) {
+          newItem['name'] = 'Unknown Item';
+        }
+        if (!newItem.containsKey('price')) {
+          newItem['price'] = 0.0;
+        }
+        if (!newItem.containsKey('quantity')) {
+          newItem['quantity'] = quantity;
+        }
+
+        _cartItems.add(newItem);
+
+        // Debug print to verify customizations are added
+        print('Added item to cart: $newItem');
+        if (newItem.containsKey('customizations')) {
+          print('Item customizations: ${newItem['customizations']}');
+        }
       }
     });
   }

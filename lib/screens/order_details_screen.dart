@@ -45,8 +45,28 @@ class OrderDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cartItems =
-        List<Map<String, dynamic>>.from(orderData['cartItems'] ?? []);
+    // Handle different possible data structures for cart items
+    List<Map<String, dynamic>> cartItems = [];
+
+    // Try different ways to extract cart items
+    if (orderData['cartItems'] != null) {
+      cartItems = List<Map<String, dynamic>>.from(orderData['cartItems']);
+    } else if (orderData['items'] != null) {
+      cartItems = List<Map<String, dynamic>>.from(orderData['items']);
+    } else if (orderData['products'] != null) {
+      cartItems = List<Map<String, dynamic>>.from(orderData['products']);
+    }
+
+    // Debug print to check the data structure
+    print('Order data: ${orderData.keys.toList()}');
+    if (cartItems.isNotEmpty) {
+      print('First item data: ${cartItems.first.keys.toList()}');
+      if (cartItems.first['customizations'] != null) {
+        print(
+            'First item customizations: ${cartItems.first['customizations']}');
+      }
+    }
+
     final timestamp = orderData['timestamp'] as Timestamp?;
     final status = orderData['status'] ?? 'Pending';
     final total = orderData['total'] ?? 0.0;
@@ -370,81 +390,243 @@ class OrderDetailsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: ashGray.withOpacity(0.3)),
               ),
-              child: Column(
-                children: cartItems.map((item) {
-                  final customizations =
-                      item['customizations'] as Map<String, dynamic>? ?? {};
-                  final hasCustomizations = customizations.isNotEmpty;
+              child: cartItems.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: TextWidget(
+                          text: 'No items found in this order',
+                          fontSize: 16,
+                          color: charcoalGray,
+                          fontFamily: 'Regular',
+                        ),
+                      ),
+                    )
+                  : Column(
+                      children: cartItems.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final item = entry.value;
 
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
+                        // Handle different possible field names
+                        final itemName = item['name'] ??
+                            item['productName'] ??
+                            item['title'] ??
+                            'Unknown Item';
+                        final itemQuantity = item['quantity'] ?? 1;
+                        final itemPrice = (item['price'] ?? 0.0).toDouble();
+                        final itemImage = item['image'] ??
+                            item['imageUrl'] ??
+                            item['productImage'];
+
+                        // Handle customizations/add-ons
+                        final customizations =
+                            item['customizations'] as Map<String, dynamic>? ??
+                                {};
+                        final addOns = item['addOns'] as List<dynamic>? ?? [];
+                        final hasAddOns = addOns.isNotEmpty;
+
+                        return Padding(
+                          padding: EdgeInsets.only(
+                              bottom: index < cartItems.length - 1 ? 16.0 : 0),
+                          child: Column(
+                            children: [
+                              Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  TextWidget(
-                                    text:
-                                        '${item['name']} x${item['quantity']}',
-                                    fontSize: 16,
-                                    color: textBlack,
-                                    fontFamily: 'Bold',
-                                  ),
-                                  if (hasCustomizations) ...[
-                                    const SizedBox(height: 4),
-                                    ...customizations.entries
-                                        .map((entry) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: 8, top: 2),
-                                              child: Row(
-                                                children: [
-                                                  TextWidget(
-                                                    text: '${entry.key}: ',
-                                                    fontSize: 12,
-                                                    color: charcoalGray,
-                                                    fontFamily: 'Regular',
-                                                  ),
-                                                  Expanded(
+                                  // Product image (if available)
+                                  if (itemImage != null) ...[
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        itemImage,
+                                        width: 60,
+                                        height: 60,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Container(
+                                            width: 60,
+                                            height: 60,
+                                            decoration: BoxDecoration(
+                                              color: ashGray.withOpacity(0.3),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Icon(
+                                              Icons.fastfood,
+                                              color: charcoalGray,
+                                              size: 30,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                  ],
+                                  // Item details
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        TextWidget(
+                                          text: '$itemName x$itemQuantity',
+                                          fontSize: 16,
+                                          color: textBlack,
+                                          fontFamily: 'Bold',
+                                        ),
+                                        const SizedBox(height: 4),
+                                        // Display customizations if available
+                                        if (customizations.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: ashGray.withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                TextWidget(
+                                                  text: 'Customizations:',
+                                                  fontSize: 12,
+                                                  color: textBlack,
+                                                  fontFamily: 'Bold',
+                                                ),
+                                                const SizedBox(height: 4),
+                                                // Display each customization with proper formatting
+                                                if (customizations[
+                                                        'espresso'] !=
+                                                    null) ...[
+                                                  _buildCustomizationItem(
+                                                      'Espresso',
+                                                      customizations[
+                                                          'espresso']),
+                                                ],
+                                                if (customizations['addShot'] !=
+                                                        null &&
+                                                    customizations['addShot'] ==
+                                                        true) ...[
+                                                  _buildCustomizationItem(
+                                                      'Extra Shot', '+₱25.00'),
+                                                ],
+                                                if (customizations['size'] !=
+                                                    null) ...[
+                                                  _buildCustomizationItem(
+                                                      'Size',
+                                                      customizations['size'],
+                                                      customizations['size'] ==
+                                                              'Large'
+                                                          ? '+₱15.00'
+                                                          : null),
+                                                ],
+                                                if (customizations[
+                                                        'sweetness'] !=
+                                                    null) ...[
+                                                  _buildCustomizationItem(
+                                                      'Sweetness',
+                                                      customizations[
+                                                          'sweetness']),
+                                                ],
+                                                if (customizations['ice'] !=
+                                                    null) ...[
+                                                  _buildCustomizationItem(
+                                                      'Ice Level',
+                                                      customizations['ice']),
+                                                ],
+                                                // Display any other customizations that might exist
+                                                ...customizations.entries
+                                                    .where((entry) => ![
+                                                          'espresso',
+                                                          'addShot',
+                                                          'size',
+                                                          'sweetness',
+                                                          'ice'
+                                                        ].contains(entry.key))
+                                                    .map((entry) =>
+                                                        _buildCustomizationItem(
+                                                            _formatCustomizationKey(
+                                                                entry.key),
+                                                            entry.value
+                                                                .toString())),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                        // Display add-ons if available
+                                        if (hasAddOns) ...[
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: ashGray.withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                TextWidget(
+                                                  text: 'Add-ons:',
+                                                  fontSize: 12,
+                                                  color: textBlack,
+                                                  fontFamily: 'Bold',
+                                                ),
+                                                const SizedBox(height: 4),
+                                                ...addOns.map((addOn) {
+                                                  final addOnName = addOn is Map
+                                                      ? addOn['name'] ??
+                                                          'Add-on'
+                                                      : addOn.toString();
+                                                  final addOnPrice = addOn
+                                                          is Map
+                                                      ? (addOn['price'] ?? 0.0)
+                                                          .toDouble()
+                                                      : 0.0;
+                                                  return Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            top: 2),
                                                     child: TextWidget(
-                                                      text: entry.value
-                                                          .toString(),
+                                                      text:
+                                                          '+ $addOnName ${addOnPrice > 0 ? '(₱${addOnPrice.toStringAsFixed(2)})' : ''}',
                                                       fontSize: 12,
-                                                      color: textBlack,
+                                                      color: charcoalGray,
                                                       fontFamily: 'Regular',
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ))
-                                        .toList(),
-                                  ],
+                                                  );
+                                                }),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  // Price
+                                  TextWidget(
+                                    text:
+                                        '₱${(itemPrice * itemQuantity).toStringAsFixed(2)}',
+                                    fontSize: 16,
+                                    color: bayanihanBlue,
+                                    fontFamily: 'Bold',
+                                  ),
                                 ],
                               ),
-                            ),
-                            TextWidget(
-                              text:
-                                  '₱${(item['price'] * item['quantity']).toStringAsFixed(2)}',
-                              fontSize: 16,
-                              color: sunshineYellow,
-                              fontFamily: 'Bold',
-                            ),
-                          ],
-                        ),
-                        if (cartItems.indexOf(item) < cartItems.length - 1)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 16),
-                            child: Divider(height: 1, color: ashGray),
+                              // Divider between items
+                              if (index < cartItems.length - 1) ...[
+                                const SizedBox(height: 16),
+                                const Divider(height: 1, color: ashGray),
+                              ],
+                            ],
                           ),
-                      ],
+                        );
+                      }).toList(),
                     ),
-                  );
-                }).toList(),
-              ),
             ),
 
             const SizedBox(height: 20),
@@ -496,5 +678,48 @@ class OrderDetailsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildCustomizationItem(String label, String value,
+      [String? priceInfo]) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          TextWidget(
+            text: '$label: ',
+            fontSize: 12,
+            color: charcoalGray,
+            fontFamily: 'Regular',
+          ),
+          TextWidget(
+            text: value,
+            fontSize: 12,
+            color: textBlack,
+            fontFamily: 'Bold',
+          ),
+          if (priceInfo != null) ...[
+            const SizedBox(width: 4),
+            TextWidget(
+              text: priceInfo,
+              fontSize: 12,
+              color: bayanihanBlue,
+              fontFamily: 'Bold',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatCustomizationKey(String key) {
+    // Convert camelCase or snake_case to Title Case
+    return key
+        .replaceAll(RegExp(r'[_-]'), ' ')
+        .split(' ')
+        .map((word) => word.isEmpty
+            ? ''
+            : word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .join(' ');
   }
 }
