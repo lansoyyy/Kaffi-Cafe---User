@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get_core/get_core.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/divider_widget.dart';
@@ -66,6 +67,7 @@ class _MenuTabState extends State<MenuTab> {
     }
   }
 
+  final _storage = GetStorage();
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -188,10 +190,14 @@ class _MenuTabState extends State<MenuTab> {
                   stream: _selectedCategory == 'All'
                       ? FirebaseFirestore.instance
                           .collection('products')
+                          .where('branch',
+                              isEqualTo: _storage.read('selectedBranch'))
                           .orderBy('timestamp', descending: true)
                           .snapshots()
                       : FirebaseFirestore.instance
                           .collection('products')
+                          .where('branch',
+                              isEqualTo: _storage.read('selectedBranch'))
                           .where('category', isEqualTo: _selectedCategory)
                           .orderBy('timestamp', descending: true)
                           .snapshots(),
@@ -309,9 +315,12 @@ class _MenuTabState extends State<MenuTab> {
                                           ),
                                           ButtonWidget(
                                             label: 'Order',
-                                            onPressed: (widget.selectedBranch ==
+                                            onPressed: (_storage.read(
+                                                            'selectedBranch') ==
                                                         null ||
-                                                    widget.selectedType == null)
+                                                    _storage.read(
+                                                            'selectedType') ==
+                                                        null)
                                                 ? null
                                                 : () {
                                                     Navigator.push(
@@ -424,8 +433,8 @@ class _MenuTabState extends State<MenuTab> {
                   // Checkout button
                   ButtonWidget(
                     label: 'Checkout',
-                    onPressed: (widget.selectedBranch == null ||
-                            widget.selectedType == null)
+                    onPressed: (_storage.read('selectedBranch') == null ||
+                            _storage.read('selectedType') == null)
                         ? null
                         : widget.onViewCart,
                     color: bayanihanBlue,

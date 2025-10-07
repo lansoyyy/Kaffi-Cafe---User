@@ -22,9 +22,9 @@ class OrderScreen extends StatefulWidget {
   final void Function(Map<String, dynamic> item) removeFromCart;
   final VoidCallback clearCart;
   final double subtotal;
-  final String? selectedBranch;
+
   final void Function(String?) setBranch;
-  final String? selectedType;
+
   final void Function(String?) setType;
   final List<String> branches;
   const OrderScreen({
@@ -33,9 +33,7 @@ class OrderScreen extends StatefulWidget {
     required this.removeFromCart,
     required this.clearCart,
     required this.subtotal,
-    required this.selectedBranch,
     required this.setBranch,
-    required this.selectedType,
     required this.setType,
     required this.branches,
   }) : super(key: key);
@@ -68,13 +66,13 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   Future<void> _checkBranchOnlineStatus() async {
-    if (widget.selectedBranch != null) {
+    if (_storage.read('selectedBranch') != null) {
       setState(() {
         _isLoadingBranchStatus = true;
       });
 
       final isOnline =
-          await _branchService.isBranchOnline(widget.selectedBranch!);
+          await _branchService.isBranchOnline(_storage.read('selectedBranch'));
 
       setState(() {
         _isBranchOnline = isOnline;
@@ -90,9 +88,8 @@ class _OrderScreenState extends State<OrderScreen> {
   @override
   void didUpdateWidget(OrderScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedBranch != widget.selectedBranch) {
-      _checkBranchOnlineStatus();
-    }
+
+    _checkBranchOnlineStatus();
   }
 
   @override
@@ -139,7 +136,8 @@ class _OrderScreenState extends State<OrderScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         TextWidget(
-                          text: '${widget.selectedType?.toUpperCase()} AT',
+                          text:
+                              '${_storage.read('selectedType')?.toUpperCase()} AT',
                           fontSize: 12,
                           fontFamily: 'Bold',
                           color: charcoalGray,
@@ -148,7 +146,7 @@ class _OrderScreenState extends State<OrderScreen> {
                           children: [
                             Expanded(
                               child: TextWidget(
-                                text: widget.selectedBranch ??
+                                text: _storage.read('selectedBranch') ??
                                     'No branch selected',
                                 fontSize: 14,
                                 fontFamily: 'Bold',
@@ -268,7 +266,7 @@ class _OrderScreenState extends State<OrderScreen> {
               child: TextField(
                 controller: _specialRemarksController,
                 decoration: InputDecoration(
-                  hintText: widget.selectedType == 'Dine in'
+                  hintText: _storage.read('selectedType') == 'Dine in'
                       ? 'Dine-in order - Table will be assigned upon arrival'
                       : 'Tell us about your special requests...',
                   hintStyle: TextStyle(
@@ -354,8 +352,8 @@ class _OrderScreenState extends State<OrderScreen> {
           child: ButtonWidget(
             label: 'Order now',
             onPressed: widget.cartItems.isEmpty ||
-                    widget.selectedBranch == null ||
-                    widget.selectedType == null ||
+                    _storage.read('selectedBranch') == null ||
+                    _storage.read('selectedType') == null ||
                     !_isBranchOnline ||
                     _isLoadingBranchStatus
                 ? null
@@ -588,7 +586,8 @@ class _OrderScreenState extends State<OrderScreen> {
 
   Widget _buildPaymentDetails() {
     final subtotal = widget.subtotal;
-    final deliveryFee = widget.selectedType == 'Delivery' ? 50.0 : 0.0;
+    final deliveryFee =
+        _storage.read('selectedType') == 'Delivery' ? 50.0 : 0.0;
     final total = subtotal + deliveryFee - _discount;
 
     return Container(
@@ -752,8 +751,8 @@ class _OrderScreenState extends State<OrderScreen> {
     try {
       // Validate required fields with stricter checks
       if (widget.cartItems.isEmpty ||
-          widget.selectedBranch == null ||
-          widget.selectedType == null) {
+          _storage.read('selectedBranch') == null ||
+          _storage.read('selectedType') == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please complete your order details')),
         );
@@ -902,7 +901,8 @@ class _OrderScreenState extends State<OrderScreen> {
 
     // Calculate totals
     final subtotal = widget.subtotal;
-    final deliveryFee = widget.selectedType == 'Delivery' ? 50.0 : 0.0;
+    final deliveryFee =
+        _storage.read('selectedType') == 'Delivery' ? 50.0 : 0.0;
     final total = subtotal + deliveryFee - _discount;
 
     // Prepare order data
@@ -913,16 +913,16 @@ class _OrderScreenState extends State<OrderScreen> {
           '${box.read('user')?['given_name']} ${box.read('user')?['family_name']}',
       'buyer':
           '${box.read('user')?['given_name']} ${box.read('user')?['family_name']}',
-      'status': widget.selectedType == 'Dine in' ? 'Preparing' : 'Pending',
-      'orderType': widget.selectedType!,
-      'branch': widget.selectedBranch!,
+      'status': 'Pending',
+      'orderType': _storage.read('selectedType')!,
+      'branch': _storage.read('selectedBranch')!,
       'total': total,
       'userId': box.read('user')?['email'],
       'paymentMethod': paymentMethod,
       'timestamp': FieldValue.serverTimestamp(),
       'specialRemarks': _specialRemarksController.text.isNotEmpty
           ? _specialRemarksController.text
-          : (widget.selectedType == 'Dine in'
+          : (_storage.read('selectedType') == 'Dine in'
               ? 'Dine-in order - Table will be assigned upon arrival'
               : ''),
       // Add voucher information if a voucher was used
@@ -931,7 +931,7 @@ class _OrderScreenState extends State<OrderScreen> {
         'voucherDiscount': _discount,
       },
       // Add reservation details if it's a dine-in order
-      if (widget.selectedType == 'Dine in') ...{
+      if (_storage.read('selectedType') == 'Dine in') ...{
         'reservationDate': _storage.read('reservationDate'),
         'reservationTime': _storage.read('reservationTime'),
         'reservationTableId': _storage.read('reservationTableId'),
@@ -952,7 +952,7 @@ class _OrderScreenState extends State<OrderScreen> {
     final orderDocRef = await _firestore.collection('orders').add(orderData);
 
     // Update reservation status if it's a dine-in order with reservation
-    if (widget.selectedType == 'Dine in' &&
+    if (_storage.read('selectedType') == 'Dine in' &&
         _storage.read('reservationTableId') != null) {
       try {
         // Find the reservation document
@@ -1027,7 +1027,8 @@ class _OrderScreenState extends State<OrderScreen> {
 
     // Calculate totals
     final subtotal = widget.subtotal;
-    final deliveryFee = widget.selectedType == 'Delivery' ? 50.0 : 0.0;
+    final deliveryFee =
+        _storage.read('selectedType') == 'Delivery' ? 50.0 : 0.0;
     final total = subtotal + deliveryFee - _discount;
 
     // Navigate to confirmation screen
@@ -1039,8 +1040,8 @@ class _OrderScreenState extends State<OrderScreen> {
               'CA-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
           customerName:
               '${box.read('user')?['given_name']} ${box.read('user')?['family_name']}',
-          branch: widget.selectedBranch!,
-          orderMethod: widget.selectedType!,
+          branch: _storage.read('selectedBranch')!,
+          orderMethod: _storage.read('selectedType')!,
           pickupTime: pickupTime,
           orderItems: widget.cartItems,
           totalAmount: total,
