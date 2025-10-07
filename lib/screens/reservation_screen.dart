@@ -277,7 +277,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
         'date': formattedDate,
         'time': _selectedTime,
         'guests': _numberOfGuests,
-        'status': 'confirmed',
+        'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
         'branch': _storage.read('selectedBranch') ?? 'Kaffi Cafe - Eloisa St',
       });
@@ -306,8 +306,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
         ),
       );
 
-      // Navigate back to home screen with result to switch to activity tab
-      Navigator.pop(context, 'goToActivity');
+      // Navigate back to home screen with result to switch to menu tab
+      Navigator.pop(context, 'goToMenu');
     } catch (e) {
       print('Error creating reservation: $e');
       ScaffoldMessenger.of(context).showSnackBar(

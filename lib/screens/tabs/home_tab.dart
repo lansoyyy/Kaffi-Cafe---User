@@ -795,10 +795,20 @@ class _HomeTabState extends State<HomeTab> {
                                                       // Handle branch selection
                                                       Navigator.pop(context);
                                                       // Reservation here
-                                                      Get.to(
-                                                          SeatReservationScreen(),
-                                                          transition: Transition
-                                                              .circularReveal);
+                                                      Get.to(SeatReservationScreen(),
+                                                              transition: Transition
+                                                                  .circularReveal)
+                                                          ?.then((result) {
+                                                        if (result ==
+                                                            'goToMenu') {
+                                                          if (widget
+                                                                  .onBranchSelected !=
+                                                              null) {
+                                                            widget
+                                                                .onBranchSelected!();
+                                                          }
+                                                        }
+                                                      });
                                                     },
                                                     child: Container(
                                                       padding: EdgeInsets.all(

@@ -949,7 +949,39 @@ class _OrderScreenState extends State<OrderScreen> {
     };
 
     // Add order to Firestore
-    await _firestore.collection('orders').add(orderData);
+    final orderDocRef = await _firestore.collection('orders').add(orderData);
+
+    // Update reservation status if it's a dine-in order with reservation
+    if (widget.selectedType == 'Dine in' &&
+        _storage.read('reservationTableId') != null) {
+      try {
+        // Find the reservation document
+        final reservationQuery = await _firestore
+            .collection('reservations')
+            .where('tableId', isEqualTo: _storage.read('reservationTableId'))
+            .where('date', isEqualTo: _storage.read('reservationDate'))
+            .where('time', isEqualTo: _storage.read('reservationTime'))
+            .where('userId', isEqualTo: box.read('user')?['email'])
+            .where('status', isEqualTo: 'pending')
+            .limit(1)
+            .get();
+
+        if (reservationQuery.docs.isNotEmpty) {
+          // Update reservation status to 'confirmed' and link to order
+          await _firestore
+              .collection('reservations')
+              .doc(reservationQuery.docs.first.id)
+              .update({
+            'status': 'confirmed',
+            'orderId': orderReference,
+            'orderDocId': orderDocRef.id,
+            'confirmedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      } catch (e) {
+        print('Error updating reservation status: $e');
+      }
+    }
 
     // Mark voucher as used if one was applied
     if (_voucherId != null && _voucherValid) {

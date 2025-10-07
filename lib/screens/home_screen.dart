@@ -177,9 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
-    if (index == 1 &&
-        (_storage.read('selectedBranch') == null ||
-            _storage.read('selectedType') == null)) {
+    if (index == 1) {
       showOrderDialog();
     }
   }
