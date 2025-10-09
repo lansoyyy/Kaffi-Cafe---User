@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
+import 'package:kaffi_cafe/widgets/touchable_widget.dart';
 
 class VoucherConfirmationScreen extends StatelessWidget {
   final String voucherName;
@@ -9,6 +10,7 @@ class VoucherConfirmationScreen extends StatelessWidget {
   final int voucherValue;
   final int pointsSpent;
   final String userName;
+  final DateTime? expirationDate;
 
   const VoucherConfirmationScreen({
     super.key,
@@ -17,6 +19,7 @@ class VoucherConfirmationScreen extends StatelessWidget {
     required this.voucherValue,
     required this.pointsSpent,
     required this.userName,
+    this.expirationDate,
   });
 
   @override
@@ -65,7 +68,8 @@ class VoucherConfirmationScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             TextWidget(
-              text: 'Show this voucher at the counter to avail your discount',
+              text:
+                  'This voucher ticket will be automatically available in your voucher history',
               fontSize: 16,
               color: charcoalGray,
               fontFamily: 'Regular',
@@ -124,28 +128,36 @@ class VoucherConfirmationScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // Voucher Code
-                  TextWidget(
-                    text: 'Voucher Code',
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
-                    fontFamily: 'Regular',
-                  ),
-
-                  const SizedBox(height: 4),
-
+                  // Voucher Ticket (no code displayed)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                        style: BorderStyle.solid,
+                      ),
                     ),
-                    child: TextWidget(
-                      text: voucherCode,
-                      fontSize: 18,
-                      color: Colors.white,
-                      fontFamily: 'Bold',
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.confirmation_number,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        TextWidget(
+                          text: 'VOUCHER TICKET',
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontFamily: 'Bold',
+                        ),
+                      ],
                     ),
                   ),
 
@@ -191,6 +203,37 @@ class VoucherConfirmationScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+
+                  const SizedBox(height: 12),
+
+                  // Expiration Date
+                  if (expirationDate != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            color: Colors.white.withOpacity(0.8),
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          TextWidget(
+                            text:
+                                'Valid until: ${expirationDate!.day}/${expirationDate!.month}/${expirationDate!.year}',
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.9),
+                            fontFamily: 'Regular',
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -216,7 +259,8 @@ class VoucherConfirmationScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   TextWidget(
-                    text: 'Show this screen to the cashier',
+                    text:
+                        'This voucher will appear in your voucher history and can be used directly without entering any code',
                     fontSize: 14,
                     color: charcoalGray,
                     fontFamily: 'Regular',
@@ -236,9 +280,8 @@ class VoucherConfirmationScreen extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            ButtonWidget(
-              label: 'Share Voucher',
-              onPressed: () {
+            TouchableWidget(
+              onTap: () {
                 // In a real app, you would implement sharing functionality
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -247,8 +290,26 @@ class VoucherConfirmationScreen extends StatelessWidget {
                   ),
                 );
               },
-              color: Colors.white,
-              textColor: bayanihanBlue,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: bayanihanBlue,
+                    width: 1.5,
+                  ),
+                ),
+                child: Center(
+                  child: TextWidget(
+                    text: 'Share Voucher',
+                    fontSize: 16,
+                    color: bayanihanBlue,
+                    fontFamily: 'Bold',
+                  ),
+                ),
+              ),
             ),
           ],
         ),

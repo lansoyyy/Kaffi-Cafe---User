@@ -202,19 +202,32 @@ class _RewardScreenState extends State<RewardScreen> {
                       final data =
                           redemptions[index].data() as Map<String, dynamic>;
                       final voucherName = data['voucherName'] ?? 'Voucher';
-                      final voucherCode = data['voucherCode'] ?? '';
+                      final voucherId =
+                          data['voucherId'] ?? data['voucherCode'] ?? '';
                       final pointsSpent = data['pointsSpent'] ?? 0;
                       final timestamp = data['timestamp'] as Timestamp?;
                       final isUsed = data['isUsed'] ?? false;
                       final status = data['status'] ?? 'active';
                       final usedAt = data['usedAt'] as Timestamp?;
                       final usedInOrder = data['usedInOrder'] ?? '';
+                      final expirationDate =
+                          data['expirationDate'] as Timestamp?;
+
                       final dateStr = timestamp != null
                           ? '${timestamp.toDate().day}/${timestamp.toDate().month}/${timestamp.toDate().year}'
                           : 'Unknown date';
                       final usedDateStr = usedAt != null
                           ? '${usedAt.toDate().day}/${usedAt.toDate().month}/${usedAt.toDate().year}'
                           : '';
+                      final expirationDateStr = expirationDate != null
+                          ? '${expirationDate.toDate().day}/${expirationDate.toDate().month}/${expirationDate.toDate().year}'
+                          : '';
+
+                      // Check if voucher is expired
+                      final isExpired = expirationDate != null &&
+                          DateTime.now().isAfter(expirationDate.toDate());
+                      final canUse =
+                          !isUsed && !isExpired && status == 'active';
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
@@ -223,7 +236,7 @@ class _RewardScreenState extends State<RewardScreen> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isUsed || status == 'used'
+                            color: isUsed || status == 'used' || isExpired
                                 ? festiveRed.withOpacity(0.3)
                                 : bayanihanBlue.withOpacity(0.3),
                             width: 1.0,
@@ -235,16 +248,18 @@ class _RewardScreenState extends State<RewardScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: isUsed || status == 'used'
+                                color: isUsed || status == 'used' || isExpired
                                     ? festiveRed.withOpacity(0.1)
                                     : bayanihanBlue.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
-                                isUsed || status == 'used'
-                                    ? Icons.check_circle
+                                isUsed || status == 'used' || isExpired
+                                    ? isExpired
+                                        ? Icons.access_time
+                                        : Icons.check_circle
                                     : Icons.card_giftcard,
-                                color: isUsed || status == 'used'
+                                color: isUsed || status == 'used' || isExpired
                                     ? festiveRed
                                     : bayanihanBlue,
                                 size: 20,
@@ -268,7 +283,9 @@ class _RewardScreenState extends State<RewardScreen> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: isUsed || status == 'used'
+                                          color: isUsed ||
+                                                  status == 'used' ||
+                                                  isExpired
                                               ? festiveRed.withOpacity(0.1)
                                               : palmGreen.withOpacity(0.1),
                                           borderRadius:
@@ -277,9 +294,13 @@ class _RewardScreenState extends State<RewardScreen> {
                                         child: TextWidget(
                                           text: isUsed || status == 'used'
                                               ? 'USED'
-                                              : 'ACTIVE',
+                                              : isExpired
+                                                  ? 'EXPIRED'
+                                                  : 'ACTIVE',
                                           fontSize: 10,
-                                          color: isUsed || status == 'used'
+                                          color: isUsed ||
+                                                  status == 'used' ||
+                                                  isExpired
                                               ? festiveRed
                                               : palmGreen,
                                           fontFamily: 'Bold',
@@ -288,7 +309,7 @@ class _RewardScreenState extends State<RewardScreen> {
                                     ],
                                   ),
                                   TextWidget(
-                                    text: 'Code: $voucherCode',
+                                    text: 'Voucher Ticket',
                                     fontSize: 12,
                                     color: bayanihanBlue,
                                     fontFamily: 'Bold',
@@ -300,6 +321,14 @@ class _RewardScreenState extends State<RewardScreen> {
                                     color: charcoalGray,
                                     fontFamily: 'Regular',
                                   ),
+                                  if (expirationDateStr.isNotEmpty)
+                                    TextWidget(
+                                      text: 'Expires on: $expirationDateStr',
+                                      fontSize: 11,
+                                      color:
+                                          isExpired ? festiveRed : charcoalGray,
+                                      fontFamily: 'Regular',
+                                    ),
                                   if (isUsed || status == 'used') ...[
                                     TextWidget(
                                       text: 'Used in order: $usedInOrder',
@@ -318,6 +347,28 @@ class _RewardScreenState extends State<RewardScreen> {
                                 ],
                               ),
                             ),
+                            if (canUse)
+                              TouchableWidget(
+                                onTap: () => _showUseVoucherConfirmation(
+                                  redemptions[index].id,
+                                  voucherName,
+                                  voucherId,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: bayanihanBlue,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: TextWidget(
+                                    text: 'Use',
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontFamily: 'Bold',
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       );
@@ -457,10 +508,13 @@ class _RewardScreenState extends State<RewardScreen> {
   Future<void> _redeemVoucher(
       int pointsCost, String voucherName, int value, String user) async {
     try {
-      // Generate a unique voucher code
+      // Generate a unique voucher ID (not displayed to user)
       final random = Random();
-      final voucherCode =
+      final voucherId =
           'VOUCHER${random.nextInt(10000).toString().padLeft(4, '0')}';
+
+      // Set expiration date (30 days from now)
+      final expirationDate = DateTime.now().add(const Duration(days: 30));
 
       // Deduct points from user account
       final userDoc = _firestore.collection('users').doc(user);
@@ -481,10 +535,11 @@ class _RewardScreenState extends State<RewardScreen> {
       await _firestore.collection('voucher_redemptions').add({
         'userId': user,
         'voucherName': voucherName,
-        'voucherCode': voucherCode,
+        'voucherId': voucherId, // Internal ID, not shown to user
         'voucherValue': value,
         'pointsSpent': pointsCost,
         'timestamp': FieldValue.serverTimestamp(),
+        'expirationDate': expirationDate,
         'status': 'active',
         'isUsed': false,
       });
@@ -499,7 +554,8 @@ class _RewardScreenState extends State<RewardScreen> {
         MaterialPageRoute(
           builder: (context) => VoucherConfirmationScreen(
             voucherName: voucherName,
-            voucherCode: voucherCode,
+            voucherCode:
+                voucherId, // Using voucherCode parameter but passing voucherId
             voucherValue: value,
             pointsSpent: pointsCost,
             userName: userName,
@@ -510,6 +566,104 @@ class _RewardScreenState extends State<RewardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to redeem voucher: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showUseVoucherConfirmation(
+    String voucherDocId,
+    String voucherName,
+    String voucherId,
+  ) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap a button to close
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: TextWidget(
+            text: 'Use Voucher',
+            fontSize: 20,
+            color: textBlack,
+            fontFamily: 'Bold',
+          ),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                TextWidget(
+                  text: 'Are you sure you want to use this voucher?',
+                  fontSize: 16,
+                  color: charcoalGray,
+                  fontFamily: 'Regular',
+                ),
+                const SizedBox(height: 8),
+                TextWidget(
+                  text: voucherName,
+                  fontSize: 14,
+                  color: bayanihanBlue,
+                  fontFamily: 'Bold',
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: TextWidget(
+                text: 'Cancel',
+                fontSize: 14,
+                color: ashGray,
+                fontFamily: 'Regular',
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: bayanihanBlue,
+              ),
+              child: TextWidget(
+                text: 'Use Voucher',
+                fontSize: 14,
+                color: Colors.white,
+                fontFamily: 'Bold',
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _useVoucher(voucherDocId, voucherName);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _useVoucher(String voucherDocId, String voucherName) async {
+    try {
+      // Update voucher status to used
+      await _firestore
+          .collection('voucher_redemptions')
+          .doc(voucherDocId)
+          .update({
+        'isUsed': true,
+        'status': 'used',
+        'usedAt': FieldValue.serverTimestamp(),
+        'usedInOrder':
+            'Store Purchase', // Can be modified to track actual order
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$voucherName has been used successfully!'),
+          backgroundColor: palmGreen,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to use voucher: $e'),
           backgroundColor: Colors.red,
         ),
       );

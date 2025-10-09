@@ -633,75 +633,75 @@ class _HomeTabState extends State<HomeTab> {
                 ),
               ),
             ),
-            DividerWidget(),
-            // For You Section
-            TextWidget(
-              text: 'For You',
-              fontSize: 22,
-              color: textBlack,
-              isBold: true,
-              fontFamily: 'Bold',
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 180,
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: getKNNRecommendations(box.read('user')?['email'] ?? '',
-                    k: 5),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  }
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final recommendations = snapshot.data!;
-                  if (recommendations.isEmpty) {
-                    // Fallback to latest products if no recommendations
-                    return StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('products')
-                          .orderBy('timestamp', descending: true)
-                          .limit(5)
-                          .snapshots(),
-                      builder: (context, productSnapshot) {
-                        if (productSnapshot.hasError) {
-                          return Center(
-                              child: Text('Error: ${productSnapshot.error}'));
-                        }
-                        if (!productSnapshot.hasData) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                        final products = productSnapshot.data!.docs;
-                        if (products.isEmpty) {
-                          return Center(child: Text('No products found.'));
-                        }
-                        return ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: products.length,
-                          itemBuilder: (context, index) {
-                            final data =
-                                products[index].data() as Map<String, dynamic>;
-                            return _buildProductCard(data, cardWidth,
-                                cardHeight, gradientHeight, padding);
-                          },
-                        );
-                      },
-                    );
-                  }
-                  return ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: recommendations.length,
-                    itemBuilder: (context, index) {
-                      final data = recommendations[index];
-                      return _buildProductCard(
-                          data, cardWidth, cardHeight, gradientHeight, padding);
-                    },
-                  );
-                },
-              ),
-            ),
+            // DividerWidget(),
+            // // For You Section
+            // TextWidget(
+            //   text: 'For You',
+            //   fontSize: 22,
+            //   color: textBlack,
+            //   isBold: true,
+            //   fontFamily: 'Bold',
+            // ),
+            // const SizedBox(height: 10),
+            // SizedBox(
+            //   height: 180,
+            //   child: FutureBuilder<List<Map<String, dynamic>>>(
+            //     future: getKNNRecommendations(box.read('user')?['email'] ?? '',
+            //         k: 5),
+            //     builder: (context, snapshot) {
+            //       if (snapshot.hasError) {
+            //         return Center(child: Text('Error: ${snapshot.error}'));
+            //       }
+            //       if (!snapshot.hasData) {
+            //         return const Center(child: CircularProgressIndicator());
+            //       }
+            //       final recommendations = snapshot.data!;
+            //       if (recommendations.isEmpty) {
+            //         // Fallback to latest products if no recommendations
+            //         return StreamBuilder<QuerySnapshot>(
+            //           stream: FirebaseFirestore.instance
+            //               .collection('products')
+            //               .orderBy('timestamp', descending: true)
+            //               .limit(5)
+            //               .snapshots(),
+            //           builder: (context, productSnapshot) {
+            //             if (productSnapshot.hasError) {
+            //               return Center(
+            //                   child: Text('Error: ${productSnapshot.error}'));
+            //             }
+            //             if (!productSnapshot.hasData) {
+            //               return const Center(
+            //                   child: CircularProgressIndicator());
+            //             }
+            //             final products = productSnapshot.data!.docs;
+            //             if (products.isEmpty) {
+            //               return Center(child: Text('No products found.'));
+            //             }
+            //             return ListView.builder(
+            //               scrollDirection: Axis.horizontal,
+            //               itemCount: products.length,
+            //               itemBuilder: (context, index) {
+            //                 final data =
+            //                     products[index].data() as Map<String, dynamic>;
+            //                 return _buildProductCard(data, cardWidth,
+            //                     cardHeight, gradientHeight, padding);
+            //               },
+            //             );
+            //           },
+            //         );
+            //       }
+            //       return ListView.builder(
+            //         scrollDirection: Axis.horizontal,
+            //         itemCount: recommendations.length,
+            //         itemBuilder: (context, index) {
+            //           final data = recommendations[index];
+            //           return _buildProductCard(
+            //               data, cardWidth, cardHeight, gradientHeight, padding);
+            //         },
+            //       );
+            //     },
+            //   ),
+            // ),
             const SizedBox(height: 16),
 
             DividerWidget(),
