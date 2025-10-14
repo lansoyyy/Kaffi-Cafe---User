@@ -1036,7 +1036,7 @@ class _OrderScreenState extends State<OrderScreen> {
             .collection('reservations')
             .doc(_pendingReservation!['id'])
             .update({
-          'status': 'Pending',
+          'status': 'pending',
           'orderId': orderReference,
           'orderDocId': orderDocRef.id,
           'confirmedAt': FieldValue.serverTimestamp(),
