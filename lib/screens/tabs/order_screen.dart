@@ -45,6 +45,7 @@ class OrderScreen extends StatefulWidget {
 class _OrderScreenState extends State<OrderScreen> {
   final box = GetStorage();
   final BranchService _branchService = BranchService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final GetStorage _storage = GetStorage();
   String _selectedPaymentMethod = 'GCash';
@@ -56,6 +57,7 @@ class _OrderScreenState extends State<OrderScreen> {
   bool _voucherValid = false;
   bool _isBranchOnline = false;
   bool _isLoadingBranchStatus = true;
+  Map<String, dynamic>? _pendingReservation;
   final TextEditingController _specialRemarksController =
       TextEditingController();
 
@@ -63,6 +65,7 @@ class _OrderScreenState extends State<OrderScreen> {
   void initState() {
     super.initState();
     _checkBranchOnlineStatus();
+    _loadPendingReservation();
   }
 
   Future<void> _checkBranchOnlineStatus() async {
@@ -90,6 +93,36 @@ class _OrderScreenState extends State<OrderScreen> {
     super.didUpdateWidget(oldWidget);
 
     _checkBranchOnlineStatus();
+    _loadPendingReservation();
+  }
+
+  Future<void> _loadPendingReservation() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final snapshot = await _firestore
+          .collection('reservations')
+          .where('userId', isEqualTo: user.email)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        setState(() {
+          _pendingReservation = {
+            'id': snapshot.docs.first.id,
+            ...snapshot.docs.first.data(),
+          };
+        });
+      } else {
+        setState(() {
+          _pendingReservation = null;
+        });
+      }
+    } catch (e) {
+      print('Error loading pending reservation: \$e');
+    }
   }
 
   @override
@@ -195,8 +228,49 @@ class _OrderScreenState extends State<OrderScreen> {
 
             const SizedBox(height: 20),
 
-            // Pickup time (if available from reservation)
-            if (_storage.read('reservationTime') != null)
+            // Show reservation details if available
+            if (_pendingReservation != null)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: bayanihanBlue.withOpacity(0.1),
+                  border: Border.all(color: bayanihanBlue, width: 2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.event_seat, color: bayanihanBlue, size: 20),
+                        const SizedBox(width: 8),
+                        TextWidget(
+                          text: 'Table Reservation',
+                          fontSize: 16,
+                          color: bayanihanBlue,
+                          isBold: true,
+                          fontFamily: 'Bold',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildReservationDetail(
+                        'Table', _pendingReservation!['tableName']),
+                    _buildReservationDetail(
+                        'Date', _pendingReservation!['dateDisplay']),
+                    _buildReservationDetail(
+                        'Time', _pendingReservation!['timeSlotDisplay']),
+                    _buildReservationDetail(
+                        'Guests', '${_pendingReservation!['guests']} guest(s)'),
+                  ],
+                ),
+              ),
+
+            if (_pendingReservation != null) const SizedBox(height: 20),
+
+            // Old pickup time display (kept for backward compatibility)
+            if (_pendingReservation == null &&
+                _storage.read('reservationTime') != null)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -930,13 +1004,16 @@ class _OrderScreenState extends State<OrderScreen> {
         'voucherCode': _voucherCode,
         'voucherDiscount': _discount,
       },
-      // Add reservation details if it's a dine-in order
-      if (_storage.read('selectedType') == 'Dine in') ...{
-        'reservationDate': _storage.read('reservationDate'),
-        'reservationTime': _storage.read('reservationTime'),
-        'reservationTableId': _storage.read('reservationTableId'),
-        'reservationTableName': _storage.read('reservationTableName'),
-        'reservationGuests': _storage.read('reservationGuests'),
+      // Add reservation details if available
+      if (_pendingReservation != null) ...{
+        'reservationId': _pendingReservation!['id'],
+        'reservationDate': _pendingReservation!['date'],
+        'reservationDateDisplay': _pendingReservation!['dateDisplay'],
+        'reservationTime': _pendingReservation!['timeSlot'],
+        'reservationTimeDisplay': _pendingReservation!['timeSlotDisplay'],
+        'reservationTableId': _pendingReservation!['tableId'],
+        'reservationTableName': _pendingReservation!['tableName'],
+        'reservationGuests': _pendingReservation!['guests'],
       },
       'items': widget.cartItems
           .map((item) => {
@@ -951,33 +1028,19 @@ class _OrderScreenState extends State<OrderScreen> {
     // Add order to Firestore
     final orderDocRef = await _firestore.collection('orders').add(orderData);
 
-    // Update reservation status if it's a dine-in order with reservation
-    if (_storage.read('selectedType') == 'Dine in' &&
-        _storage.read('reservationTableId') != null) {
+    // Update reservation status if there's a pending reservation
+    if (_pendingReservation != null) {
       try {
-        // Find the reservation document
-        final reservationQuery = await _firestore
+        // Update reservation status to 'confirmed' and link to order
+        await _firestore
             .collection('reservations')
-            .where('tableId', isEqualTo: _storage.read('reservationTableId'))
-            .where('date', isEqualTo: _storage.read('reservationDate'))
-            .where('time', isEqualTo: _storage.read('reservationTime'))
-            .where('userId', isEqualTo: box.read('user')?['email'])
-            .where('status', isEqualTo: 'pending')
-            .limit(1)
-            .get();
-
-        if (reservationQuery.docs.isNotEmpty) {
-          // Update reservation status to 'confirmed' and link to order
-          await _firestore
-              .collection('reservations')
-              .doc(reservationQuery.docs.first.id)
-              .update({
-            'status': 'confirmed',
-            'orderId': orderReference,
-            'orderDocId': orderDocRef.id,
-            'confirmedAt': FieldValue.serverTimestamp(),
-          });
-        }
+            .doc(_pendingReservation!['id'])
+            .update({
+          'status': 'Pending',
+          'orderId': orderReference,
+          'orderDocId': orderDocRef.id,
+          'confirmedAt': FieldValue.serverTimestamp(),
+        });
       } catch (e) {
         print('Error updating reservation status: $e');
       }
@@ -1077,5 +1140,30 @@ class _OrderScreenState extends State<OrderScreen> {
     final formattedHour = hour % 12 == 0 ? 12 : hour % 12;
     final formattedMinute = minute.toString().padLeft(2, '0');
     return '$formattedHour:$formattedMinute $period';
+  }
+
+  // Helper method to build reservation detail row
+  Widget _buildReservationDetail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          TextWidget(
+            text: '$label:',
+            fontSize: 14,
+            color: textBlack,
+            fontFamily: 'Regular',
+          ),
+          TextWidget(
+            text: value,
+            fontSize: 14,
+            color: textBlack,
+            isBold: true,
+            fontFamily: 'Bold',
+          ),
+        ],
+      ),
+    );
   }
 }

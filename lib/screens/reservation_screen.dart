@@ -3,7 +3,6 @@ import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/divider_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
-import 'package:get_storage/get_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -17,8 +16,8 @@ class SeatReservationScreen extends StatefulWidget {
 }
 
 class _SeatReservationScreenState extends State<SeatReservationScreen> {
-  final GetStorage _storage = GetStorage();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Tables configuration (3 tables with 2 seats, 2 tables with 4 seats)
   final List<Map<String, dynamic>> _tables = [
@@ -31,17 +30,16 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
 
   // State variables
   DateTime _selectedDate = DateTime.now();
-  String? _selectedTime;
+  String? _selectedTimeSlot;
   String? _selectedTableId;
   int _numberOfGuests = 1;
-  Map<String, bool> _tableAvailability = {};
-  Map<String, bool> _tableEnabledStatus = {};
-  Map<String, dynamic> _tableReservations = {};
-  List<String> _availableTimeSlots = [];
+  Map<String, List<String>> _tableAvailableSlots = {};
+  List<Map<String, String>> _timeSlots = [];
   bool _isLoading = true;
-  Timer? _statusUpdateTimer;
+  StreamSubscription? _reservationsSubscription;
+  String? _pendingReservationId;
+  Map<String, dynamic>? _cartReservation;
 
-  // Initialize the reservation screen
   @override
   void initState() {
     super.initState();
@@ -50,335 +48,250 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
 
   // Initialize reservation data
   Future<void> _initializeReservation() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    // Initialize table availability and enabled status
-    for (var table in _tables) {
-      _tableAvailability[table['id']] = true;
-      _tableEnabledStatus[table['id']] = true;
-    }
-
-    // Load table enabled status from Firestore
-    await _loadTableStatuses();
-
-    // Load today's reservations
-    await _loadTableReservations();
-
-    // Generate available time slots based on operating hours
+    // Generate time slots with cleaning time
     _generateTimeSlots();
 
-    // Start periodic status updates
-    _startStatusUpdates();
+    // Check if user has pending reservation in cart
+    await _checkPendingReservation();
 
-    setState(() {
-      _isLoading = false;
-    });
+    // Set up real-time listener for reservations
+    _setupRealtimeListener();
+
+    setState(() => _isLoading = false);
   }
 
-  // Load table enabled status from Firestore
-  Future<void> _loadTableStatuses() async {
-    try {
-      for (var table in _tables) {
-        final doc =
-            await _firestore.collection('tables').doc(table['id']).get();
-        if (doc.exists) {
-          final data = doc.data() as Map<String, dynamic>;
-          setState(() {
-            _tableEnabledStatus[table['id']] = data['enabled'] ?? true;
-          });
-        }
-      }
-    } catch (e) {
-      print('Error loading table statuses: $e');
-    }
-  }
-
-  // Load today's reservations
-  Future<void> _loadTableReservations() async {
-    try {
-      final today = DateFormat('dd/MM/yyyy').format(DateTime.now());
-      final QuerySnapshot snapshot = await _firestore
-          .collection('reservations')
-          .where('reservation.date', isEqualTo: today)
-          .where('reservation.status',
-              whereIn: ['confirmed', 'checked_in']).get();
-
-      Map<String, dynamic> reservations = {};
-      for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final tableId = data['tableId'] as String;
-        reservations[tableId] = {
-          ...data['reservation'],
-          'docId': doc.id,
-        };
-      }
-
-      setState(() {
-        _tableReservations = reservations;
-      });
-    } catch (e) {
-      print('Error loading table reservations: $e');
-    }
-  }
-
-  // Start periodic status updates
-  void _startStatusUpdates() {
-    _statusUpdateTimer?.cancel();
-    _statusUpdateTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
-      _loadTableReservations();
-    });
-  }
-
-  // Get current table status
-  String _getTableStatus(String tableId) {
-    if (!_tableEnabledStatus[tableId]!) {
-      return 'Disabled';
-    }
-
-    // Check if table has active reservation
-    if (_tableReservations.containsKey(tableId)) {
-      final reservation = _tableReservations[tableId];
-      if (reservation['status'] == 'confirmed') {
-        return 'Reserved';
-      }
-    }
-
-    return 'Available';
-  }
-
-  // Generate available time slots based on operating hours (7:00 AM - 11:00 PM)
+  // Generate time slots: 7:00-7:55, 8:00-8:55, ..., 22:00-22:55 (10:00 PM - 10:55 PM)
   void _generateTimeSlots() {
+    _timeSlots.clear();
     final now = DateTime.now();
-    final List<String> slots = [];
 
-    // Operating hours: 7:00 AM to 11:00 PM
-    // Last slot: 10:00-10:59 PM
+    // Operating hours: 7:00 AM to 10:00 PM (last slot 10:00-10:55 PM)
     for (int hour = 7; hour <= 22; hour++) {
-      // Skip past hours for today
-      // if (_selectedDate.day == now.day &&
-      //     _selectedDate.month == now.month &&
-      //     _selectedDate.year == now.year &&
-      //     hour <= now.hour) {
-      //   continue;
-      // }
-
-      // Format hour for 12-hour clock
-      String period = hour < 12 ? 'AM' : 'PM';
-      int displayHour = hour <= 12 ? hour : hour - 12;
-      if (displayHour == 0) displayHour = 12;
-
-      String timeSlot = '$displayHour:00 $period';
-      slots.add(timeSlot);
-    }
-
-    setState(() {
-      _availableTimeSlots = slots;
-    });
-  }
-
-  // Check if a table is available for a specific date and time
-  Future<bool> _checkTableAvailability(
-      String tableId, DateTime date, String time) async {
-    try {
-      // First check if table is enabled
-      if (!_tableEnabledStatus[tableId]!) {
-        return false;
+      // Skip past time slots for today
+      if (_selectedDate.day == now.day &&
+          _selectedDate.month == now.month &&
+          _selectedDate.year == now.year &&
+          hour < now.hour) {
+        continue;
       }
 
-      // Format date for Firestore query
-      String formattedDate =
-          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      // Format time slot with start and end time (55 mins, 5 mins for cleaning)
+      String period = hour < 12 ? 'AM' : 'PM';
+      int displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
 
-      // Query reservations for the same date, time, and table
-      final QuerySnapshot snapshot = await _firestore
-          .collection('reservations')
-          .where('tableId', isEqualTo: tableId)
-          .where('reservation.date',
-              isEqualTo: DateFormat('dd/MM/yyyy').format(date))
-          .where('reservation.time', isEqualTo: time)
-          .where('reservation.status',
-              whereIn: ['confirmed', 'checked_in']).get();
+      String startTime = '$displayHour:00 $period';
+      String endTime = '$displayHour:55 $period';
+      String slotDisplay = '$startTime - $endTime';
 
-      // If no reservations found, table is available
-      return snapshot.docs.isEmpty;
-    } catch (e) {
-      print('Error checking table availability: $e');
-      return false;
-    }
-  }
-
-  // Update table availability based on selected date and time
-  Future<void> _updateTableAvailability() async {
-    if (_selectedTime == null || _selectedTableId == null) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Check availability for each table
-    for (var table in _tables) {
-      bool isAvailable = await _checkTableAvailability(
-        table['id'],
-        _selectedDate,
-        _selectedTime!,
-      );
-
-      setState(() {
-        _tableAvailability[table['id']] = isAvailable;
+      _timeSlots.add({
+        'display': slotDisplay,
+        'value': startTime,
+        'hour': hour.toString(),
       });
     }
+  }
 
-    setState(() {
-      _isLoading = false;
+  // Check if user has a pending reservation (in cart)
+  Future<void> _checkPendingReservation() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final snapshot = await _firestore
+          .collection('reservations')
+          .where('userId', isEqualTo: user.email)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        setState(() {
+          _pendingReservationId = snapshot.docs.first.id;
+          _cartReservation = snapshot.docs.first.data();
+        });
+      }
+    } catch (e) {
+      print('Error checking pending reservation: $e');
+    }
+  }
+
+  // Set up real-time listener for reservations
+  void _setupRealtimeListener() {
+    final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+
+    _reservationsSubscription = _firestore
+        .collection('reservations')
+        .where('date', isEqualTo: dateStr)
+        .where('status', whereIn: ['pending', 'confirmed'])
+        .snapshots()
+        .listen((snapshot) {
+      _updateTableAvailability(snapshot.docs);
     });
   }
 
-  final box = GetStorage();
-  // Create a reservation in Firestore
-  Future<void> _createReservation() async {
-    if (_selectedTableId == null || _selectedTime == null) return;
+  // Update table availability based on reservations
+  void _updateTableAvailability(List<QueryDocumentSnapshot> reservations) {
+    Map<String, List<String>> availableSlots = {};
 
-    // Validate that number of guests doesn't exceed table capacity
-    final maxGuests = _getMaxGuests();
-    if (_numberOfGuests > maxGuests) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: TextWidget(
-            text: 'Number of guests exceeds table capacity ($maxGuests)',
-            fontSize: 16,
-            color: plainWhite,
-            fontFamily: 'Regular',
-          ),
-          backgroundColor: festiveRed,
-          duration: const Duration(seconds: 3),
-        ),
+    // Initialize all tables with all time slots
+    for (var table in _tables) {
+      availableSlots[table['id']] =
+          _timeSlots.map((slot) => slot['value']!).toList();
+    }
+
+    // Remove booked slots
+    for (var doc in reservations) {
+      final data = doc.data() as Map<String, dynamic>;
+      final tableId = data['tableId'];
+      final timeSlot = data['timeSlot'];
+
+      if (availableSlots.containsKey(tableId)) {
+        availableSlots[tableId]!.remove(timeSlot);
+      }
+    }
+
+    setState(() {
+      _tableAvailableSlots = availableSlots;
+    });
+  }
+
+  // Add reservation to cart
+  Future<void> _addToCart() async {
+    if (_selectedTableId == null || _selectedTimeSlot == null) return;
+
+    // Check if user already has a pending reservation
+    if (_pendingReservationId != null) {
+      _showMessage(
+        'You already have a pending reservation. Please checkout or cancel it first.',
+        isError: true,
+      );
+      return;
+    }
+
+    // Validate number of guests
+    final selectedTable =
+        _tables.firstWhere((table) => table['id'] == _selectedTableId);
+    if (_numberOfGuests > selectedTable['capacity']) {
+      _showMessage(
+        'Number of guests exceeds table capacity (${selectedTable['capacity']})',
+        isError: true,
       );
       return;
     }
 
     try {
-      // Get selected table details
-      final selectedTable =
-          _tables.firstWhere((table) => table['id'] == _selectedTableId);
+      final user = _auth.currentUser;
+      if (user == null) {
+        _showMessage('Please login to make a reservation', isError: true);
+        return;
+      }
 
-      // Format date for Firestore
-      String formattedDate =
-          '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+
+      // Double-check availability before creating reservation
+      final existingReservation = await _firestore
+          .collection('reservations')
+          .where('tableId', isEqualTo: _selectedTableId)
+          .where('date', isEqualTo: dateStr)
+          .where('timeSlot', isEqualTo: _selectedTimeSlot)
+          .where('status', whereIn: ['pending', 'confirmed'])
+          .get();
+
+      if (existingReservation.docs.isNotEmpty) {
+        _showMessage(
+          'This table is no longer available for the selected time slot.',
+          isError: true,
+        );
+        // Refresh availability
+        _setupRealtimeListener();
+        return;
+      }
 
       // Create reservation document
-      await _firestore.collection('reservations').add({
-        'userId': box.read('user')['email'],
-        'userEmail': box.read('user')['email'],
+      final docRef = await _firestore.collection('reservations').add({
+        'userId': user.email,
+        'userEmail': user.email,
+        'userName': user.displayName ?? user.email,
         'tableId': _selectedTableId,
         'tableName': selectedTable['name'],
         'tableCapacity': selectedTable['capacity'],
-        'date': formattedDate,
-        'time': _selectedTime,
+        'date': dateStr,
+        'dateDisplay': DateFormat('dd/MM/yyyy').format(_selectedDate),
+        'timeSlot': _selectedTimeSlot,
+        'timeSlotDisplay': _timeSlots
+            .firstWhere((slot) => slot['value'] == _selectedTimeSlot)['display'],
         'guests': _numberOfGuests,
-        'status': 'pending',
+        'status': 'pending', // Pending until checkout
         'createdAt': FieldValue.serverTimestamp(),
-        'branch': _storage.read('selectedBranch') ?? 'Kaffi Cafe - Eloisa St',
       });
 
-      // Save reservation data locally
-      _storage.write('reservationTableId', _selectedTableId);
-      _storage.write('reservationTableName', selectedTable['name']);
-      _storage.write('reservationTime', _selectedTime);
-      _storage.write('reservationDate',
-          '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}');
-      _storage.write('reservationGuests', _numberOfGuests);
-      _storage.write('selectedType', 'Dine in');
+      setState(() {
+        _pendingReservationId = docRef.id;
+      });
 
-      // Show confirmation
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: TextWidget(
-            text:
-                'Reservation confirmed for ${selectedTable['name']} at $_selectedTime on ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year} for $_numberOfGuests guest${_numberOfGuests > 1 ? 's' : ''}',
-            fontSize: 16,
-            color: plainWhite,
-            fontFamily: 'Regular',
-          ),
-          backgroundColor: bayanihanBlue,
-          duration: const Duration(seconds: 3),
-        ),
+      _showMessage(
+        'Reservation added to cart! Please proceed to checkout.',
+        isError: false,
       );
 
-      // Navigate back to home screen with result to switch to menu tab
-      Navigator.pop(context, 'goToMenu');
+      // Refresh to show cart
+      await _checkPendingReservation();
     } catch (e) {
-      print('Error creating reservation: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: TextWidget(
-            text: 'Failed to create reservation. Please try again.',
-            fontSize: 16,
-            color: plainWhite,
-            fontFamily: 'Regular',
-          ),
-          backgroundColor: festiveRed,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      print('Error adding reservation to cart: $e');
+      _showMessage('Failed to add reservation. Please try again.', isError: true);
     }
   }
 
-  // Cancel a reservation
-  Future<void> _cancelReservation(String reservationId) async {
+  // Cancel reservation (remove from cart)
+  Future<void> _cancelReservation() async {
+    if (_pendingReservationId == null) return;
+
     try {
-      await _firestore.collection('reservations').doc(reservationId).update({
-        'status': 'cancelled',
-        'cancelledAt': FieldValue.serverTimestamp(),
+      // Delete the reservation document
+      await _firestore
+          .collection('reservations')
+          .doc(_pendingReservationId)
+          .delete();
+
+      setState(() {
+        _pendingReservationId = null;
+        _cartReservation = null;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: TextWidget(
-            text: 'Reservation cancelled successfully',
-            fontSize: 16,
-            color: plainWhite,
-            fontFamily: 'Regular',
-          ),
-          backgroundColor: bayanihanBlue,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      _showMessage('Reservation cancelled successfully.', isError: false);
     } catch (e) {
       print('Error cancelling reservation: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: TextWidget(
-            text: 'Failed to cancel reservation. Please try again.',
-            fontSize: 16,
-            color: plainWhite,
-            fontFamily: 'Regular',
-          ),
-          backgroundColor: festiveRed,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      _showMessage('Failed to cancel reservation.', isError: true);
     }
   }
 
-  // Build status indicator widget
-  Widget _buildStatusIndicator(String label, Color color, IconData icon) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          color: color,
-          size: 16,
-        ),
-        const SizedBox(width: 4),
-        TextWidget(
-          text: label,
-          fontSize: 12,
-          color: color,
+  // Proceed to checkout
+  void _proceedToCheckout() {
+    if (_pendingReservationId == null) return;
+
+    // Navigate back with reservation data
+    Navigator.pop(context, {
+      'action': 'checkout',
+      'reservationId': _pendingReservationId,
+      'reservation': _cartReservation,
+    });
+  }
+
+  // Show message
+  void _showMessage(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: TextWidget(
+          text: message,
+          fontSize: 14,
+          color: plainWhite,
           fontFamily: 'Regular',
         ),
-      ],
+        backgroundColor: isError ? festiveRed : bayanihanBlue,
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -386,153 +299,26 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
   int _getMaxGuests() {
     if (_selectedTableId == null) return 0;
     final selectedTable = _tables.firstWhere(
-        (table) => table['id'] == _selectedTableId,
-        orElse: () => {'capacity': 0});
+      (table) => table['id'] == _selectedTableId,
+      orElse: () => {'capacity': 0},
+    );
     return selectedTable['capacity'] as int;
   }
 
-  // Widget for guest selection
-  Widget _buildGuestSelection() {
-    final maxGuests = _getMaxGuests();
-    final screenWidth = MediaQuery.of(context).size.width;
-    final fontSize = screenWidth * 0.036;
+  // Check if a time slot is available for selected table
+  bool _isTimeSlotAvailable(String timeSlot) {
+    if (_selectedTableId == null) return false;
+    return _tableAvailableSlots[_selectedTableId]?.contains(timeSlot) ?? false;
+  }
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          color: plainWhite,
-          boxShadow: [
-            BoxShadow(
-              color: bayanihanBlue.withOpacity(0.1),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.people,
-                  color: bayanihanBlue,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                TextWidget(
-                  text:
-                      '$_numberOfGuests Guest${_numberOfGuests > 1 ? 's' : ''}',
-                  fontSize: fontSize + 1,
-                  color: textBlack,
-                  isBold: true,
-                  fontFamily: 'Bold',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Guest count selector
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Decrease button
-                GestureDetector(
-                  onTap: _numberOfGuests > 1
-                      ? () {
-                          setState(() {
-                            _numberOfGuests--;
-                          });
-                        }
-                      : null,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: _numberOfGuests > 1
-                          ? bayanihanBlue
-                          : ashGray.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Icon(
-                      Icons.remove,
-                      color: _numberOfGuests > 1 ? plainWhite : ashGray,
-                      size: 20,
-                    ),
-                  ),
-                ),
-                // Guest count display
-                Container(
-                  width: 60,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: bayanihanBlue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: bayanihanBlue,
-                      width: 1,
-                    ),
-                  ),
-                  child: Center(
-                    child: TextWidget(
-                      text: '$_numberOfGuests',
-                      fontSize: fontSize + 2,
-                      color: bayanihanBlue,
-                      isBold: true,
-                      fontFamily: 'Bold',
-                    ),
-                  ),
-                ),
-                // Increase button
-                GestureDetector(
-                  onTap: _numberOfGuests < maxGuests
-                      ? () {
-                          setState(() {
-                            _numberOfGuests++;
-                          });
-                        }
-                      : null,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: _numberOfGuests < maxGuests
-                          ? bayanihanBlue
-                          : ashGray.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Icon(
-                      Icons.add,
-                      color: _numberOfGuests < maxGuests ? plainWhite : ashGray,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Capacity warning
-            if (_numberOfGuests >= maxGuests && maxGuests > 0)
-              TextWidget(
-                text: 'Maximum capacity for this table: $maxGuests guests',
-                fontSize: fontSize - 1,
-                color: festiveRed,
-                fontFamily: 'Regular',
-              ),
-          ],
-        ),
-      ),
-    );
+  // Get available time slots count for a table
+  int _getAvailableSlotsCount(String tableId) {
+    return _tableAvailableSlots[tableId]?.length ?? 0;
   }
 
   @override
   void dispose() {
-    _statusUpdateTimer?.cancel();
+    _reservationsSubscription?.cancel();
     super.dispose();
   }
 
@@ -540,10 +326,6 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final fontSize = screenWidth * 0.036;
-    final padding = screenWidth * 0.035;
-
-    // Note: Table availability is now only updated when a time is selected
-    // to prevent infinite loading loops
 
     return Scaffold(
       appBar: AppBar(
@@ -561,478 +343,532 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0, vertical: 12.0),
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header
-                    TextWidget(
-                      text: 'Reserve Your Table',
-                      fontSize: 22,
-                      color: textBlack,
-                      isBold: true,
-                      fontFamily: 'Bold',
-                      letterSpacing: 1.3,
-                    ),
-                    const SizedBox(height: 12),
-                    DividerWidget(),
+                    // Show cart if user has pending reservation
+                    if (_pendingReservationId != null && _cartReservation != null)
+                      _buildCartSection(),
 
-                    // Operating hours info
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: bayanihanBlue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          TextWidget(
-                            text: 'Operating Hours: 7:00 AM - 11:00 PM',
-                            fontSize: 14,
-                            color: textBlack,
-                            fontFamily: 'Bold',
-                          ),
-                          const SizedBox(height: 4),
-                          TextWidget(
-                            text: 'Last reservation slot: 10:00 PM',
-                            fontSize: 14,
-                            color: textBlack,
-                            fontFamily: 'Regular',
-                          ),
-                          const SizedBox(height: 4),
-                          TextWidget(
-                            text: 'Each reservation is limited to 1 hour',
-                            fontSize: 14,
-                            color: textBlack,
-                            fontFamily: 'Regular',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Table Status Legend
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: plainWhite,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: ashGray.withOpacity(0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          TextWidget(
-                            text: 'Table Status',
-                            fontSize: 16,
-                            color: textBlack,
-                            isBold: true,
-                            fontFamily: 'Bold',
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildStatusIndicator(
-                                  'Available', palmGreen, Icons.check_circle),
-                              _buildStatusIndicator(
-                                  'Reserved', bayanihanBlue, Icons.event),
-                              _buildStatusIndicator(
-                                  'Disabled', festiveRed, Icons.block),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Table Selection
-                    TextWidget(
-                      text: 'Select Table',
-                      fontSize: 20,
-                      color: textBlack,
-                      isBold: true,
-                      fontFamily: 'Bold',
-                      letterSpacing: 1.2,
-                    ),
-                    const SizedBox(height: 12),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio:
-                            screenWidth * 0.4 / (screenWidth * 0.35),
-                      ),
-                      itemCount: _tables.length,
-                      itemBuilder: (context, index) {
-                        final table = _tables[index];
-                        final isSelected = _selectedTableId == table['id'];
-                        final status = _getTableStatus(table['id']);
-                        final isAvailable = status == 'Available';
-                        final isEnabled =
-                            _tableEnabledStatus[table['id']] ?? true;
-                        final reservation = _tableReservations[table['id']];
-
-                        Color statusColor;
-                        IconData statusIcon;
-                        String statusText;
-
-                        switch (status) {
-                          case 'Available':
-                            statusColor = palmGreen;
-                            statusIcon = Icons.check_circle;
-                            statusText = 'Available';
-                            break;
-                          case 'Reserved':
-                            statusColor = bayanihanBlue;
-                            statusIcon = Icons.event;
-                            statusText = 'Reserved';
-                            break;
-                          case 'Disabled':
-                            statusColor = festiveRed;
-                            statusIcon = Icons.block;
-                            statusText = 'Disabled';
-                            break;
-                          default:
-                            statusColor = ashGray;
-                            statusIcon = Icons.help;
-                            statusText = 'Unknown';
-                        }
-
-                        return Card(
-                          elevation: 3,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: InkWell(
-                            onTap: isAvailable
-                                ? () {
-                                    setState(() {
-                                      _selectedTableId = table['id'];
-                                      // Reset time when table changes
-                                      _selectedTime = null;
-                                    });
-                                  }
-                                : null,
-                            borderRadius: BorderRadius.circular(15),
-                            child: Container(
-                              padding: EdgeInsets.all(padding),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(15),
-                                color: isSelected
-                                    ? bayanihanBlue.withOpacity(0.1)
-                                    : isEnabled
-                                        ? plainWhite
-                                        : ashGray.withOpacity(0.3),
-                                border: Border.all(
-                                  color:
-                                      isSelected ? bayanihanBlue : statusColor,
-                                  width: 2,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      TextWidget(
-                                        text: table['name'],
-                                        fontSize: fontSize + 1,
-                                        color: isSelected
-                                            ? bayanihanBlue
-                                            : isEnabled
-                                                ? textBlack
-                                                : charcoalGray,
-                                        isBold: true,
-                                        fontFamily: 'Bold',
-                                      ),
-                                      Icon(
-                                        isSelected
-                                            ? Icons.check_circle
-                                            : statusIcon,
-                                        color: isSelected
-                                            ? bayanihanBlue
-                                            : statusColor,
-                                        size: 20,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  // Table and chair icons
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      // Table icon
-                                      Icon(
-                                        Icons.table_restaurant,
-                                        size: 30,
-                                        color: isSelected
-                                            ? bayanihanBlue
-                                            : isEnabled
-                                                ? textBlack
-                                                : charcoalGray,
-                                      ),
-                                      // Chair icons based on capacity
-                                      if (table['capacity'] == 2) ...[
-                                        const SizedBox(width: 8),
-                                        Icon(
-                                          Icons.chair,
-                                          size: 20,
-                                          color: isSelected
-                                              ? bayanihanBlue
-                                              : isEnabled
-                                                  ? textBlack
-                                                  : charcoalGray,
-                                        ),
-                                        Icon(
-                                          Icons.chair,
-                                          size: 20,
-                                          color: isSelected
-                                              ? bayanihanBlue
-                                              : isEnabled
-                                                  ? textBlack
-                                                  : charcoalGray,
-                                        ),
-                                      ] else if (table['capacity'] == 4) ...[
-                                        const SizedBox(width: 8),
-                                        Icon(
-                                          Icons.chair,
-                                          size: 20,
-                                          color: isSelected
-                                              ? bayanihanBlue
-                                              : isEnabled
-                                                  ? textBlack
-                                                  : charcoalGray,
-                                        ),
-                                        Icon(
-                                          Icons.chair,
-                                          size: 20,
-                                          color: isSelected
-                                              ? bayanihanBlue
-                                              : isEnabled
-                                                  ? textBlack
-                                                  : charcoalGray,
-                                        ),
-                                        Icon(
-                                          Icons.chair,
-                                          size: 20,
-                                          color: isSelected
-                                              ? bayanihanBlue
-                                              : isEnabled
-                                                  ? textBlack
-                                                  : charcoalGray,
-                                        ),
-                                        Icon(
-                                          Icons.chair,
-                                          size: 20,
-                                          color: isSelected
-                                              ? bayanihanBlue
-                                              : isEnabled
-                                                  ? textBlack
-                                                  : charcoalGray,
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  TextWidget(
-                                    text:
-                                        'Table with ${table['capacity']} chairs',
-                                    fontSize: fontSize - 1,
-                                    color: isEnabled
-                                        ? charcoalGray
-                                        : charcoalGray.withOpacity(0.6),
-                                    fontFamily: 'Regular',
-                                  ),
-                                  const SizedBox(height: 6),
-                                  // Show reservation details if reserved
-                                  if (reservation != null) ...[
-                                    TextWidget(
-                                      text:
-                                          'Reserved by: ${reservation['name']}',
-                                      fontSize: fontSize - 2,
-                                      color: bayanihanBlue,
-                                      fontFamily: 'Regular',
-                                    ),
-                                    TextWidget(
-                                      text: 'Time: ${reservation['time']}',
-                                      fontSize: fontSize - 2,
-                                      color: bayanihanBlue,
-                                      fontFamily: 'Regular',
-                                    ),
-                                  ] else ...[
-                                    TextWidget(
-                                      text: statusText,
-                                      fontSize: fontSize - 1,
-                                      color: statusColor,
-                                      isBold: true,
-                                      fontFamily: 'Bold',
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    // Show remaining fields only after table is selected
-                    if (_selectedTableId != null)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 18),
-                          DividerWidget(),
-                          // Date Display
-                          TextWidget(
-                            text: 'Reservation Date',
-                            fontSize: 20,
-                            color: textBlack,
-                            isBold: true,
-                            fontFamily: 'Bold',
-                            letterSpacing: 1.2,
-                          ),
-                          const SizedBox(height: 12),
-                          Card(
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.all(16.0),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(15),
-                                color: plainWhite,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: bayanihanBlue.withOpacity(0.1),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today,
-                                    color: bayanihanBlue,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  TextWidget(
-                                    text:
-                                        '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                                    fontSize: fontSize + 1,
-                                    color: textBlack,
-                                    isBold: true,
-                                    fontFamily: 'Bold',
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          DividerWidget(),
-                          // Time Selection
-                          TextWidget(
-                            text: 'Select Available Time',
-                            fontSize: 20,
-                            color: textBlack,
-                            isBold: true,
-                            fontFamily: 'Bold',
-                            letterSpacing: 1.2,
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: _availableTimeSlots.map((time) {
-                              final isSelected = _selectedTime == time;
-                              return ChoiceChip(
-                                showCheckmark: false,
-                                label: TextWidget(
-                                  text: time,
-                                  fontSize: fontSize,
-                                  color: isSelected ? plainWhite : textBlack,
-                                  isBold: isSelected,
-                                  fontFamily: 'Regular',
-                                ),
-                                selected: isSelected,
-                                onSelected: (selected) {
-                                  if (selected) {
-                                    setState(() {
-                                      _selectedTime = time;
-                                    });
-                                    // Update table availability when time is selected
-                                    _updateTableAvailability();
-                                  }
-                                },
-                                backgroundColor: cloudWhite,
-                                selectedColor: bayanihanBlue,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  side: BorderSide(
-                                    color: isSelected ? bayanihanBlue : ashGray,
-                                    width: 1.0,
-                                  ),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 8),
-                                elevation: isSelected ? 3 : 0,
-                                pressElevation: 5,
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 18),
-                          DividerWidget(),
-                          // Number of Guests Selection
-                          TextWidget(
-                            text: 'Number of Guests',
-                            fontSize: 20,
-                            color: textBlack,
-                            isBold: true,
-                            fontFamily: 'Bold',
-                            letterSpacing: 1.2,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildGuestSelection(),
-                          const SizedBox(height: 18),
-                          // Confirm Reservation Button
-                          Center(
-                            child: ButtonWidget(
-                              label: 'Confirm Reservation',
-                              onPressed: _selectedTime != null &&
-                                      _selectedTableId != null
-                                  ? () {
-                                      _createReservation();
-                                    }
-                                  : () {},
-                              color: _selectedTime != null &&
-                                      _selectedTableId != null
-                                  ? bayanihanBlue
-                                  : ashGray,
-                              textColor: plainWhite,
-                              fontSize: fontSize + 2,
-                              height: 50,
-                              radius: 12,
-                              width: screenWidth * 0.6,
-                            ),
-                          ),
-                          const SizedBox(height: 30),
-                        ],
-                      ),
+                    // Show reservation form only if no pending reservation
+                    if (_pendingReservationId == null) ...[
+                      _buildHeader(),
+                      const SizedBox(height: 16),
+                      _buildOperatingHours(),
+                      const SizedBox(height: 16),
+                      _buildDateSelector(),
+                      const SizedBox(height: 16),
+                      _buildTableSelection(fontSize),
+                      if (_selectedTableId != null) ...[
+                        const SizedBox(height: 16),
+                        _buildTimeSlotSelection(fontSize),
+                        const SizedBox(height: 16),
+                        _buildGuestSelection(fontSize),
+                        const SizedBox(height: 24),
+                        _buildAddToCartButton(screenWidth, fontSize),
+                      ],
+                    ],
+                    const SizedBox(height: 30),
                   ],
                 ),
               ),
             ),
+    );
+  }
+
+  // Build cart section
+  Widget _buildCartSection() {
+    return Card(
+      elevation: 4,
+      color: bayanihanBlue.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: bayanihanBlue, width: 2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.shopping_cart, color: bayanihanBlue, size: 24),
+                const SizedBox(width: 8),
+                TextWidget(
+                  text: 'Reservation in Cart',
+                  fontSize: 20,
+                  color: bayanihanBlue,
+                  isBold: true,
+                  fontFamily: 'Bold',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            DividerWidget(),
+            const SizedBox(height: 12),
+            _buildCartDetail('Table', _cartReservation!['tableName']),
+            _buildCartDetail('Date', _cartReservation!['dateDisplay']),
+            _buildCartDetail('Time', _cartReservation!['timeSlotDisplay']),
+            _buildCartDetail('Guests', '${_cartReservation!['guests']} guest(s)'),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ButtonWidget(
+                    label: 'Cancel',
+                    onPressed: _cancelReservation,
+                    color: festiveRed,
+                    textColor: plainWhite,
+                    fontSize: 16,
+                    height: 45,
+                    radius: 10,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ButtonWidget(
+                    label: 'Proceed to Checkout',
+                    onPressed: _proceedToCheckout,
+                    color: bayanihanBlue,
+                    textColor: plainWhite,
+                    fontSize: 16,
+                    height: 45,
+                    radius: 10,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCartDetail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          TextWidget(
+            text: '$label:',
+            fontSize: 14,
+            color: textBlack,
+            fontFamily: 'Regular',
+          ),
+          TextWidget(
+            text: value,
+            fontSize: 14,
+            color: textBlack,
+            isBold: true,
+            fontFamily: 'Bold',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build header
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextWidget(
+          text: 'Reserve Your Table',
+          fontSize: 22,
+          color: textBlack,
+          isBold: true,
+          fontFamily: 'Bold',
+        ),
+        const SizedBox(height: 8),
+        DividerWidget(),
+      ],
+    );
+  }
+
+  // Build operating hours info
+  Widget _buildOperatingHours() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bayanihanBlue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextWidget(
+            text: 'Operating Hours: 7:00 AM - 11:00 PM',
+            fontSize: 14,
+            color: textBlack,
+            fontFamily: 'Bold',
+          ),
+          const SizedBox(height: 4),
+          TextWidget(
+            text: 'Reservation slots: 55 minutes (5 mins cleaning time)',
+            fontSize: 14,
+            color: textBlack,
+            fontFamily: 'Regular',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build date selector
+  Widget _buildDateSelector() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: InkWell(
+        onTap: () async {
+          final pickedDate = await showDatePicker(
+            context: context,
+            initialDate: _selectedDate,
+            firstDate: DateTime.now(),
+            lastDate: DateTime.now().add(const Duration(days: 30)),
+          );
+          if (pickedDate != null) {
+            setState(() {
+              _selectedDate = pickedDate;
+              _selectedTimeSlot = null;
+              _selectedTableId = null;
+            });
+            _generateTimeSlots();
+            _setupRealtimeListener();
+          }
+        },
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, color: bayanihanBlue, size: 24),
+                  const SizedBox(width: 12),
+                  TextWidget(
+                    text: DateFormat('EEEE, dd MMMM yyyy').format(_selectedDate),
+                    fontSize: 16,
+                    color: textBlack,
+                    isBold: true,
+                    fontFamily: 'Bold',
+                  ),
+                ],
+              ),
+              Icon(Icons.arrow_drop_down, color: bayanihanBlue),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Build table selection
+  Widget _buildTableSelection(double fontSize) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextWidget(
+          text: 'Select Table',
+          fontSize: 20,
+          color: textBlack,
+          isBold: true,
+          fontFamily: 'Bold',
+        ),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.2,
+          ),
+          itemCount: _tables.length,
+          itemBuilder: (context, index) {
+            final table = _tables[index];
+            final isSelected = _selectedTableId == table['id'];
+            final availableSlots = _getAvailableSlotsCount(table['id']);
+
+            return Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+                side: BorderSide(
+                  color: isSelected ? bayanihanBlue : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _selectedTableId = table['id'];
+                    _selectedTimeSlot = null;
+                    _numberOfGuests = 1;
+                  });
+                },
+                borderRadius: BorderRadius.circular(15),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    color: isSelected
+                        ? bayanihanBlue.withOpacity(0.1)
+                        : plainWhite,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextWidget(
+                        text: table['name'],
+                        fontSize: fontSize + 1,
+                        color: isSelected ? bayanihanBlue : textBlack,
+                        isBold: true,
+                        fontFamily: 'Bold',
+                      ),
+                      const SizedBox(height: 8),
+                      Icon(
+                        Icons.table_restaurant,
+                        size: 32,
+                        color: isSelected ? bayanihanBlue : textBlack,
+                      ),
+                      const SizedBox(height: 8),
+                      TextWidget(
+                        text: '${table['capacity']} seats',
+                        fontSize: fontSize - 1,
+                        color: charcoalGray,
+                        fontFamily: 'Regular',
+                      ),
+                      const SizedBox(height: 4),
+                      TextWidget(
+                        text: '$availableSlots slots available',
+                        fontSize: fontSize - 2,
+                        color: availableSlots > 0 ? palmGreen : festiveRed,
+                        fontFamily: 'Bold',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // Build time slot selection
+  Widget _buildTimeSlotSelection(double fontSize) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextWidget(
+          text: 'Select Time Slot',
+          fontSize: 20,
+          color: textBlack,
+          isBold: true,
+          fontFamily: 'Bold',
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: _timeSlots.map((slot) {
+            final isAvailable = _isTimeSlotAvailable(slot['value']!);
+            final isSelected = _selectedTimeSlot == slot['value'];
+
+            return ChoiceChip(
+              showCheckmark: false,
+              label: TextWidget(
+                text: slot['display']!,
+                fontSize: fontSize - 1,
+                color: !isAvailable
+                    ? ashGray
+                    : isSelected
+                        ? plainWhite
+                        : textBlack,
+                isBold: isSelected,
+                fontFamily: 'Regular',
+              ),
+              selected: isSelected,
+              onSelected: isAvailable
+                  ? (selected) {
+                      if (selected) {
+                        setState(() {
+                          _selectedTimeSlot = slot['value'];
+                        });
+                      }
+                    }
+                  : null,
+              backgroundColor: !isAvailable
+                  ? ashGray.withOpacity(0.3)
+                  : cloudWhite,
+              selectedColor: bayanihanBlue,
+              disabledColor: ashGray.withOpacity(0.3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(
+                  color: !isAvailable
+                      ? ashGray
+                      : isSelected
+                          ? bayanihanBlue
+                          : ashGray,
+                  width: 1.0,
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  // Build guest selection
+  Widget _buildGuestSelection(double fontSize) {
+    final maxGuests = _getMaxGuests();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextWidget(
+          text: 'Number of Guests',
+          fontSize: 20,
+          color: textBlack,
+          isBold: true,
+          fontFamily: 'Bold',
+        ),
+        const SizedBox(height: 12),
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.people, color: bayanihanBlue, size: 24),
+                    const SizedBox(width: 12),
+                    TextWidget(
+                      text: '$_numberOfGuests Guest${_numberOfGuests > 1 ? 's' : ''}',
+                      fontSize: fontSize + 1,
+                      color: textBlack,
+                      isBold: true,
+                      fontFamily: 'Bold',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Decrease button
+                    GestureDetector(
+                      onTap: _numberOfGuests > 1
+                          ? () => setState(() => _numberOfGuests--)
+                          : null,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: _numberOfGuests > 1
+                              ? bayanihanBlue
+                              : ashGray.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(
+                          Icons.remove,
+                          color: _numberOfGuests > 1 ? plainWhite : ashGray,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                    // Guest count display
+                    Container(
+                      width: 60,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: bayanihanBlue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: bayanihanBlue, width: 1),
+                      ),
+                      child: Center(
+                        child: TextWidget(
+                          text: '$_numberOfGuests',
+                          fontSize: fontSize + 2,
+                          color: bayanihanBlue,
+                          isBold: true,
+                          fontFamily: 'Bold',
+                        ),
+                      ),
+                    ),
+                    // Increase button
+                    GestureDetector(
+                      onTap: _numberOfGuests < maxGuests
+                          ? () => setState(() => _numberOfGuests++)
+                          : null,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: _numberOfGuests < maxGuests
+                              ? bayanihanBlue
+                              : ashGray.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(
+                          Icons.add,
+                          color: _numberOfGuests < maxGuests ? plainWhite : ashGray,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_numberOfGuests >= maxGuests && maxGuests > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: TextWidget(
+                      text: 'Maximum capacity: $maxGuests guests',
+                      fontSize: fontSize - 1,
+                      color: festiveRed,
+                      fontFamily: 'Regular',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Build add to cart button
+  Widget _buildAddToCartButton(double screenWidth, double fontSize) {
+    final isEnabled = _selectedTableId != null && _selectedTimeSlot != null;
+
+    return Center(
+      child: ButtonWidget(
+        label: 'Add to Cart',
+        onPressed: isEnabled ? _addToCart : () {},
+        color: isEnabled ? bayanihanBlue : ashGray,
+        textColor: plainWhite,
+        fontSize: fontSize + 2,
+        height: 50,
+        radius: 12,
+        width: screenWidth * 0.6,
+      ),
     );
   }
 }

@@ -330,12 +330,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               transition: Transition
                                                                   .circularReveal)
                                                           ?.then((result) {
-                                                        if (result ==
-                                                            'goToMenu') {
-                                                          setState(() {
-                                                            _selectedIndex =
-                                                                1; // Switch to menu tab
-                                                          });
+                                                        if (result != null && result is Map) {
+                                                          if (result['action'] == 'checkout') {
+                                                            // User wants to checkout with reservation
+                                                            setState(() {
+                                                              _selectedIndex = 1; // Switch to menu tab
+                                                            });
+                                                            // Show message to add items to cart
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text('Reservation added! Add items to your cart and checkout.'),
+                                                                backgroundColor: Colors.blue,
+                                                                duration: Duration(seconds: 3),
+                                                              ),
+                                                            );
+                                                          }
                                                         }
                                                       });
                                                     },
