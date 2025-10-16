@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -68,22 +67,6 @@ class _AccountScreenState extends State<AccountScreen> {
         return Icons.fastfood;
     }
   }
-
-  // Sample FAQs
-  final List<Map<String, String>> _faqs = [
-    {
-      'question': 'How do I earn points?',
-      'answer': 'Earn 10% of your total order value in points at Kaffi Cafe.'
-    },
-    {
-      'question': 'How can I redeem vouchers?',
-      'answer': 'Visit the Rewards tab to redeem vouchers using your points.'
-    },
-    {
-      'question': 'What is the return policy?',
-      'answer': 'Returns are accepted within 24 hours with a valid receipt.'
-    },
-  ];
 
   final box = GetStorage();
   @override
@@ -1010,70 +993,10 @@ class _AccountScreenState extends State<AccountScreen> {
                   const SizedBox(height: 18),
                   DividerWidget(),
                 ],
-                // Chatbot FAQs
-                TextWidget(
-                  text: 'FAQs',
-                  fontSize: 20,
-                  color: textBlack,
-                  isBold: true,
-                  fontFamily: 'Bold',
-                  letterSpacing: 1.2,
-                ),
-                const SizedBox(height: 12),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _faqs.length,
-                  itemBuilder: (context, index) {
-                    final faq = _faqs[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: ExpansionTile(
-                        title: TextWidget(
-                          text: faq['question']!,
-                          fontSize: fontSize,
-                          color: textBlack,
-                          isBold: true,
-                          fontFamily: 'Bold',
-                        ),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16.0, vertical: 8.0),
-                            child: TextWidget(
-                              text: faq['answer']!,
-                              fontSize: fontSize - 1,
-                              color: charcoalGray,
-                              fontFamily: 'Regular',
-                              maxLines: 5,
-                            ),
-                          ),
-                        ],
-                        backgroundColor: cloudWhite,
-                        collapsedBackgroundColor: plainWhite,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: BorderSide(
-                            color: ashGray,
-                            width: 1.0,
-                          ),
-                        ),
-                        collapsedShape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: BorderSide(
-                            color: ashGray,
-                            width: 1.0,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 30),
-                // Chatbot Button
+                // FAQ Button
                 Center(
                   child: ButtonWidget(
-                    label: 'Chat with Support',
+                    label: 'View FAQs',
                     onPressed: () {
                       Get.to(ChatFaqSupportScreen(),
                           transition: Transition.circularReveal);
