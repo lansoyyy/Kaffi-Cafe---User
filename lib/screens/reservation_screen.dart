@@ -62,13 +62,25 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
     setState(() => _isLoading = false);
   }
 
-  // Generate time slots: 7:00-7:55, 8:00-8:55, ..., 22:00-22:55 (10:00 PM - 10:55 PM)
+  // Generate time slots: 10:00-10:55, 11:00-11:55, ..., 1:00-1:55 (1:00 AM - 1:55 AM)
   void _generateTimeSlots() {
     _timeSlots.clear();
     final now = DateTime.now();
 
-    // Operating hours: 7:00 AM to 10:00 PM (last slot 10:00-10:55 PM)
-    for (int hour = 7; hour <= 22; hour++) {
+    // Operating hours: 10:00 AM to 2:00 AM (next day)
+    // 10 AM to 11 PM (10-23), then 12 AM to 1 AM (0-1)
+    List<int> hours = [];
+    
+    // Add 10 AM to 11 PM (10-23)
+    for (int hour = 10; hour <= 23; hour++) {
+      hours.add(hour);
+    }
+    
+    // Add 12 AM to 1 AM (0-1) for next day
+    hours.add(0);
+    hours.add(1);
+
+    for (int hour in hours) {
       // Skip past time slots for today
       if (_selectedDate.day == now.day &&
           _selectedDate.month == now.month &&
