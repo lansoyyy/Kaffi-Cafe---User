@@ -16,6 +16,7 @@ import 'package:crypto/crypto.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kaffi_cafe/utils/keys.dart';
 import 'package:kaffi_cafe/services/branch_service.dart';
+import 'package:kaffi_cafe/services/product_relationship_service.dart';
 
 class OrderScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -46,6 +47,8 @@ class _OrderScreenState extends State<OrderScreen> {
   final box = GetStorage();
   final BranchService _branchService = BranchService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ProductRelationshipService _relationshipService =
+      ProductRelationshipService();
 
   final GetStorage _storage = GetStorage();
   String _selectedPaymentMethod = 'GCash';
@@ -1027,6 +1030,9 @@ class _OrderScreenState extends State<OrderScreen> {
 
     // Add order to Firestore
     final orderDocRef = await _firestore.collection('orders').add(orderData);
+
+    // Track product relationships for recommendations
+    await _relationshipService.trackProductRelationships(widget.cartItems);
 
     // Update reservation status if there's a pending reservation
     if (_pendingReservation != null) {

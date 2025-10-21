@@ -6,6 +6,7 @@ import 'package:kaffi_cafe/widgets/divider_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kaffi_cafe/screens/product_details_screen.dart';
+import 'package:kaffi_cafe/widgets/recommendation_widget.dart';
 import 'package:get_storage/get_storage.dart';
 
 class MenuTab extends StatefulWidget {
@@ -80,113 +81,113 @@ class _MenuTabState extends State<MenuTab> {
       children: [
         Padding(
           padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              // Branch & Type Header
-              Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF6F7FB),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.location_on, color: bayanihanBlue, size: 22),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: TextWidget(
-                        text: widget.selectedBranch ?? 'Select Branch',
-                        fontSize: 16,
-                        color: bayanihanBlue,
-                        fontFamily: 'Bold',
-                        maxLines: 2,
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: (widget.selectedType != null)
-                            ? bayanihanBlue
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 7),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // Branch & Type Header
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6F7FB),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on, color: bayanihanBlue, size: 22),
+                      SizedBox(width: 8),
+                      Expanded(
                         child: TextWidget(
-                          text: widget.selectedType ?? 'Select Type',
-                          fontSize: 15,
-                          color: (widget.selectedType != null)
-                              ? Colors.white
-                              : bayanihanBlue,
+                          text: widget.selectedBranch ?? 'Select Branch',
+                          fontSize: 16,
+                          color: bayanihanBlue,
                           fontFamily: 'Bold',
+                          maxLines: 2,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              TextWidget(
-                text: 'Our Menu',
-                fontSize: 22,
-                color: textBlack,
-                isBold: true,
-                fontFamily: 'Bold',
-              ),
-              const SizedBox(height: 10),
-              DividerWidget(),
-              // Category Chips
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: _categories.map((category) {
-                    final isSelected = _selectedCategory == category;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: ChoiceChip(
-                        showCheckmark: false,
-                        label: TextWidget(
-                          text: category,
-                          fontSize: 14,
-                          color: isSelected ? plainWhite : textBlack,
-                          isBold: isSelected,
-                          fontFamily: 'Regular',
+                      SizedBox(width: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: (widget.selectedType != null)
+                              ? bayanihanBlue
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(22),
                         ),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() {
-                              _selectedCategory = category;
-                            });
-                          }
-                        },
-                        backgroundColor: cloudWhite,
-                        selectedColor: bayanihanBlue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(7.5),
-                          side: BorderSide(
-                            color: isSelected ? bayanihanBlue : ashGray,
-                            width: 0.5,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 7),
+                          child: TextWidget(
+                            text: widget.selectedType ?? 'Select Type',
+                            fontSize: 15,
+                            color: (widget.selectedType != null)
+                                ? Colors.white
+                                : bayanihanBlue,
+                            fontFamily: 'Bold',
                           ),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12.5, vertical: 5),
-                        elevation: isSelected ? 1 : 0,
-                        pressElevation: 1,
                       ),
-                    );
-                  }).toList(),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              // Menu Grid from Firestore
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
+                TextWidget(
+                  text: 'Our Menu',
+                  fontSize: 22,
+                  color: textBlack,
+                  isBold: true,
+                  fontFamily: 'Bold',
+                ),
+                const SizedBox(height: 10),
+                DividerWidget(),
+                // Category Chips
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: _categories.map((category) {
+                      final isSelected = _selectedCategory == category;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: ChoiceChip(
+                          showCheckmark: false,
+                          label: TextWidget(
+                            text: category,
+                            fontSize: 14,
+                            color: isSelected ? plainWhite : textBlack,
+                            isBold: isSelected,
+                            fontFamily: 'Regular',
+                          ),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                _selectedCategory = category;
+                              });
+                            }
+                          },
+                          backgroundColor: cloudWhite,
+                          selectedColor: bayanihanBlue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(7.5),
+                            side: BorderSide(
+                              color: isSelected ? bayanihanBlue : ashGray,
+                              width: 0.5,
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12.5, vertical: 5),
+                          elevation: isSelected ? 1 : 0,
+                          pressElevation: 1,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Menu Grid from Firestore
+                StreamBuilder<QuerySnapshot>(
                   stream: _selectedCategory == 'All'
                       ? FirebaseFirestore.instance
                           .collection('products')
@@ -212,242 +213,282 @@ class _MenuTabState extends State<MenuTab> {
                     if (menuItems.isEmpty) {
                       return Center(child: Text('No items found.'));
                     }
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 5,
-                        mainAxisSpacing: 5,
-                        childAspectRatio: cardWidth / cardHeight,
-                      ),
-                      itemCount: menuItems.length,
-                      itemBuilder: (context, index) {
-                        final data =
-                            menuItems[index].data() as Map<String, dynamic>;
-                        return Card(
-                          elevation: 1,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
+
+                    // Store first product for recommendations when in "All" category
+                    final firstProduct =
+                        _selectedCategory == 'All' && menuItems.isNotEmpty
+                            ? menuItems.first.data() as Map<String, dynamic>
+                            : null;
+
+                    return Column(
+                      children: [
+                        // Product Grid
+                        Container(
+                          constraints: BoxConstraints(
+                            maxHeight:
+                                MediaQuery.of(context).size.height * 0.35,
                           ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(15),
-                              color: plainWhite,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: bayanihanBlue.withOpacity(0.15),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
+                          child: GridView.builder(
+                            shrinkWrap: true,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 5,
+                              mainAxisSpacing: 5,
+                              childAspectRatio: cardWidth / cardHeight,
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(15),
-                                  ),
-                                  child: data['image'] != null &&
-                                          data['image'].toString().isNotEmpty
-                                      ? Image.network(
-                                          data['image'],
-                                          height: cardHeight * 0.5,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Container(
-                                            color: ashGray,
-                                            height: cardHeight * 0.5,
-                                            width: double.infinity,
-                                            child: Center(
-                                              child: Icon(
-                                                _getCategoryIcon(
-                                                    data['category']),
-                                                size: 40,
-                                                color: plainWhite,
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                      : Container(
-                                          color: ashGray,
-                                          height: cardHeight * 0.5,
-                                          width: double.infinity,
-                                          child: Center(
-                                            child: Icon(
-                                              _getCategoryIcon(
-                                                  data['category']),
-                                              size: 40,
-                                              color: plainWhite,
-                                            ),
-                                          ),
-                                        ),
+                            itemCount: menuItems.length,
+                            itemBuilder: (context, index) {
+                              final data = menuItems[index].data()
+                                  as Map<String, dynamic>;
+                              return Card(
+                                elevation: 1,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
                                 ),
-                                Padding(
-                                  padding: EdgeInsets.all(padding),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(15),
+                                    color: plainWhite,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: bayanihanBlue.withOpacity(0.15),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      TextWidget(
-                                        text: data['name'],
-                                        fontSize: fontSize + 2,
-                                        color: textBlack,
-                                        isBold: true,
-                                        fontFamily: 'Bold',
-                                        maxLines: 1,
+                                      ClipRRect(
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                          top: Radius.circular(15),
+                                        ),
+                                        child: data['image'] != null &&
+                                                data['image']
+                                                    .toString()
+                                                    .isNotEmpty
+                                            ? Image.network(
+                                                data['image'],
+                                                height: cardHeight * 0.5,
+                                                width: double.infinity,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error,
+                                                        stackTrace) =>
+                                                    Container(
+                                                  color: ashGray,
+                                                  height: cardHeight * 0.5,
+                                                  width: double.infinity,
+                                                  child: Center(
+                                                    child: Icon(
+                                                      _getCategoryIcon(
+                                                          data['category']),
+                                                      size: 40,
+                                                      color: plainWhite,
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                            : Container(
+                                                color: ashGray,
+                                                height: cardHeight * 0.5,
+                                                width: double.infinity,
+                                                child: Center(
+                                                  child: Icon(
+                                                    _getCategoryIcon(
+                                                        data['category']),
+                                                    size: 40,
+                                                    color: plainWhite,
+                                                  ),
+                                                ),
+                                              ),
                                       ),
-                                      const SizedBox(height: 5),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          TextWidget(
-                                            text:
-                                                '₱${(data['price'] as num?)?.toStringAsFixed(0) ?? '0'}',
-                                            fontSize: 18,
-                                            color: const Color.fromARGB(
-                                                255, 255, 213, 0),
-                                            isBold: true,
-                                            fontFamily: 'Bold',
-                                          ),
-                                          ButtonWidget(
-                                            label: 'Order',
-                                            onPressed: (_storage.read(
-                                                            'selectedBranch') ==
-                                                        null ||
-                                                    _storage.read(
-                                                            'selectedType') ==
-                                                        null)
-                                                ? null
-                                                : () {
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder: (context) =>
-                                                            ProductDetailsScreen(
-                                                          product: data,
-                                                          addToCart:
-                                                              widget.addToCart,
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
-                                            color: bayanihanBlue,
-                                            textColor: plainWhite,
-                                            fontSize: fontSize - 2,
-                                            height: 34,
-                                            radius: 10,
-                                            width: 80,
-                                          ),
-                                        ],
+                                      Padding(
+                                        padding: EdgeInsets.all(padding),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            TextWidget(
+                                              text: data['name'],
+                                              fontSize: fontSize + 2,
+                                              color: textBlack,
+                                              isBold: true,
+                                              fontFamily: 'Bold',
+                                              maxLines: 1,
+                                            ),
+                                            const SizedBox(height: 5),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                TextWidget(
+                                                  text:
+                                                      '₱${(data['price'] as num?)?.toStringAsFixed(0) ?? '0'}',
+                                                  fontSize: 18,
+                                                  color: const Color.fromARGB(
+                                                      255, 255, 213, 0),
+                                                  isBold: true,
+                                                  fontFamily: 'Bold',
+                                                ),
+                                                ButtonWidget(
+                                                  label: 'Order',
+                                                  onPressed: (_storage.read(
+                                                                  'selectedBranch') ==
+                                                              null ||
+                                                          _storage.read(
+                                                                  'selectedType') ==
+                                                              null)
+                                                      ? null
+                                                      : () {
+                                                          Navigator.push(
+                                                            context,
+                                                            MaterialPageRoute(
+                                                              builder: (context) =>
+                                                                  ProductDetailsScreen(
+                                                                product: data,
+                                                                addToCart: widget
+                                                                    .addToCart,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
+                                                  color: bayanihanBlue,
+                                                  textColor: plainWhite,
+                                                  fontSize: fontSize - 2,
+                                                  height: 34,
+                                                  radius: 10,
+                                                  width: 80,
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (widget.cartItems.isNotEmpty)
-          Positioned(
-            bottom: 20,
-            left: 20,
-            right: 20,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Cart icon with item count
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: bayanihanBlue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Stack(
-                      children: [
-                        Center(
-                          child: Icon(
-                            Icons.shopping_cart,
-                            color: bayanihanBlue,
-                            size: 20,
+                              );
+                            },
                           ),
                         ),
-                        if (widget.cartItems.length > 0)
-                          Positioned(
-                            right: 6,
-                            top: 6,
+                        // Frequently Bought Together Section (only show in "All" category)
+                        if (_selectedCategory == 'All' && firstProduct != null)
+                          RecommendationWidget(
+                            productName: firstProduct['name'],
+                            addToCart: widget.addToCart,
+                            selectedBranch: widget.selectedBranch,
+                            selectedType: widget.selectedType,
+                          ),
+                        SizedBox(
+                          height: 15,
+                        ),
+                        if (widget.cartItems.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(12.5),
                             child: Container(
-                              width: 16,
-                              height: 16,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
                               decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(25),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, -2),
+                                  ),
+                                ],
                               ),
-                              child: Center(
-                                child: TextWidget(
-                                  text: '${widget.cartItems.length}',
-                                  fontSize: 10,
-                                  color: Colors.white,
-                                  fontFamily: 'Bold',
-                                ),
+                              child: Row(
+                                children: [
+                                  // Cart icon with item count
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: bayanihanBlue.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        Center(
+                                          child: Icon(
+                                            Icons.shopping_cart,
+                                            color: bayanihanBlue,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        if (widget.cartItems.length > 0)
+                                          Positioned(
+                                            right: 6,
+                                            top: 6,
+                                            child: Container(
+                                              width: 16,
+                                              height: 16,
+                                              decoration: BoxDecoration(
+                                                color: Colors.red,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Center(
+                                                child: TextWidget(
+                                                  text:
+                                                      '${widget.cartItems.length}',
+                                                  fontSize: 10,
+                                                  color: Colors.white,
+                                                  fontFamily: 'Bold',
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  // Price display
+                                  Expanded(
+                                    child: TextWidget(
+                                      text:
+                                          'P ${widget.subtotal.toStringAsFixed(2)}',
+                                      fontSize: 18,
+                                      color: textBlack,
+                                      fontFamily: 'Bold',
+                                    ),
+                                  ),
+                                  // Checkout button
+                                  ButtonWidget(
+                                    label: 'Checkout',
+                                    onPressed:
+                                        (_storage.read('selectedBranch') ==
+                                                    null ||
+                                                _storage.read('selectedType') ==
+                                                    null)
+                                            ? null
+                                            : widget.onViewCart,
+                                    color: bayanihanBlue,
+                                    textColor: Colors.white,
+                                    fontSize: 16,
+                                    height: 45,
+                                    width: 100,
+                                    radius: 22,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Price display
-                  Expanded(
-                    child: TextWidget(
-                      text: 'P ${widget.subtotal.toStringAsFixed(2)}',
-                      fontSize: 18,
-                      color: textBlack,
-                      fontFamily: 'Bold',
-                    ),
-                  ),
-                  // Checkout button
-                  ButtonWidget(
-                    label: 'Checkout',
-                    onPressed: (_storage.read('selectedBranch') == null ||
-                            _storage.read('selectedType') == null)
-                        ? null
-                        : widget.onViewCart,
-                    color: bayanihanBlue,
-                    textColor: Colors.white,
-                    fontSize: 16,
-                    height: 45,
-                    width: 100,
-                    radius: 22,
-                  ),
-                ],
-              ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
+        ),
       ],
     );
   }
