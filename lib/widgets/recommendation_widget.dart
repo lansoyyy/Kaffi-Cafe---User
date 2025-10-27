@@ -8,14 +8,14 @@ import 'package:get_storage/get_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RecommendationWidget extends StatefulWidget {
-  final String productName;
+  final List<Map<String, dynamic>> cartItems;
   final void Function(Map<String, dynamic> item, int quantity) addToCart;
   final String? selectedBranch;
   final String? selectedType;
 
   const RecommendationWidget({
     Key? key,
-    required this.productName,
+    required this.cartItems,
     required this.addToCart,
     this.selectedBranch,
     this.selectedType,
@@ -47,26 +47,42 @@ class _RecommendationWidgetState extends State<RecommendationWidget> {
     });
 
     try {
-      // First try to get frequently bought together items
-      List<Map<String, dynamic>> recommendations = await _recommendationService
-          .getFrequentlyBoughtTogether(widget.productName);
+      List<Map<String, dynamic>> recommendations = [];
 
-      // If no recommendations found, try popular products in the same category
-      if (recommendations.isEmpty) {
-        // Get the current product's category
-        final firestore = FirebaseFirestore.instance;
-        final productSnapshot = await firestore
-            .collection('products')
-            .where('name', isEqualTo: widget.productName)
-            .limit(1)
-            .get();
+      // If cart has items, try to get recommendations based on cart items
+      if (widget.cartItems.isNotEmpty) {
+        // Get recommendations based on the first item in cart
+        final firstItemName = widget.cartItems.first['name'] as String;
+        recommendations = await _recommendationService
+            .getFrequentlyBoughtTogether(firstItemName);
 
-        if (productSnapshot.docs.isNotEmpty) {
-          final category =
-              productSnapshot.docs.first.data()['category'] as String?;
-          if (category != null) {
+        // If no recommendations found for first item, try with other items
+        if (recommendations.isEmpty && widget.cartItems.length > 1) {
+          for (int i = 1;
+              i < widget.cartItems.length && recommendations.isEmpty;
+              i++) {
+            final itemName = widget.cartItems[i]['name'] as String;
             recommendations = await _recommendationService
-                .getPopularProductsInCategory(category, widget.productName);
+                .getFrequentlyBoughtTogether(itemName);
+          }
+        }
+
+        // If still no recommendations, try popular products in the same category
+        if (recommendations.isEmpty) {
+          final firestore = FirebaseFirestore.instance;
+          final productSnapshot = await firestore
+              .collection('products')
+              .where('name', isEqualTo: firstItemName)
+              .limit(1)
+              .get();
+
+          if (productSnapshot.docs.isNotEmpty) {
+            final category =
+                productSnapshot.docs.first.data()['category'] as String?;
+            if (category != null) {
+              recommendations = await _recommendationService
+                  .getPopularProductsInCategory(category, firstItemName);
+            }
           }
         }
       }

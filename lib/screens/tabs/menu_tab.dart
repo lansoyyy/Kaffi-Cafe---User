@@ -214,19 +214,13 @@ class _MenuTabState extends State<MenuTab> {
                       return Center(child: Text('No items found.'));
                     }
 
-                    // Store first product for recommendations when in "All" category
-                    final firstProduct =
-                        _selectedCategory == 'All' && menuItems.isNotEmpty
-                            ? menuItems.first.data() as Map<String, dynamic>
-                            : null;
-
                     return Column(
                       children: [
                         // Product Grid
                         Container(
                           constraints: BoxConstraints(
                             maxHeight:
-                                MediaQuery.of(context).size.height * 0.35,
+                                MediaQuery.of(context).size.height * 0.425,
                           ),
                           child: GridView.builder(
                             shrinkWrap: true,
@@ -376,14 +370,6 @@ class _MenuTabState extends State<MenuTab> {
                             },
                           ),
                         ),
-                        // Frequently Bought Together Section (only show in "All" category)
-                        if (_selectedCategory == 'All' && firstProduct != null)
-                          RecommendationWidget(
-                            productName: firstProduct['name'],
-                            addToCart: widget.addToCart,
-                            selectedBranch: widget.selectedBranch,
-                            selectedType: widget.selectedType,
-                          ),
                         SizedBox(
                           height: 15,
                         ),

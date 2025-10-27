@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/text_widget.dart';
+import 'package:kaffi_cafe/widgets/recommendation_widget.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 
 class OrderConfirmationScreen extends StatelessWidget {
   final String orderReference;
@@ -141,6 +143,27 @@ class OrderConfirmationScreen extends StatelessWidget {
                 _buildDetailSection(
                   'YOUR ORDER',
                   orderItems.map((item) => _buildOrderItem(item)).toList(),
+                ),
+
+                SizedBox(height: 20),
+
+                // Frequently Bought Together Section
+                RecommendationWidget(
+                  cartItems: orderItems
+                      .map((item) => {
+                            'name': item['name'],
+                            'price': item['price'] /
+                                item['quantity'], // Calculate unit price
+                            'quantity':
+                                1, // Default quantity for recommendations
+                          })
+                      .toList(),
+                  addToCart: (item, quantity) {
+                    // This is just for display purposes after order confirmation
+                    // In a real app, this might navigate back to menu with pre-selected items
+                  },
+                  selectedBranch: GetStorage().read('selectedBranch'),
+                  selectedType: GetStorage().read('selectedType'),
                 ),
 
                 SizedBox(height: 20),

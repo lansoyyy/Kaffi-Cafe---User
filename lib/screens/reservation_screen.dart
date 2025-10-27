@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/divider_widget.dart';
@@ -70,12 +71,12 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
     // Operating hours: 10:00 AM to 2:00 AM (next day)
     // 10 AM to 11 PM (10-23), then 12 AM to 1 AM (0-1)
     List<int> hours = [];
-    
+
     // Add 10 AM to 11 PM (10-23)
     for (int hour = 10; hour <= 23; hour++) {
       hours.add(hour);
     }
-    
+
     // Add 12 AM to 1 AM (0-1) for next day
     hours.add(0);
     hours.add(1);
@@ -139,10 +140,11 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
         .where('status', whereIn: ['pending', 'confirmed'])
         .snapshots()
         .listen((snapshot) {
-      _updateTableAvailability(snapshot.docs);
-    });
+          _updateTableAvailability(snapshot.docs);
+        });
   }
 
+  final box = GetStorage();
   // Update table availability based on reservations
   void _updateTableAvailability(List<QueryDocumentSnapshot> reservations) {
     Map<String, List<String>> availableSlots = {};
@@ -194,12 +196,6 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
     }
 
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        _showMessage('Please login to make a reservation', isError: true);
-        return;
-      }
-
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
 
       // Double-check availability before creating reservation
@@ -208,8 +204,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
           .where('tableId', isEqualTo: _selectedTableId)
           .where('date', isEqualTo: dateStr)
           .where('timeSlot', isEqualTo: _selectedTimeSlot)
-          .where('status', whereIn: ['pending', 'confirmed'])
-          .get();
+          .where('status', whereIn: ['pending', 'confirmed']).get();
 
       if (existingReservation.docs.isNotEmpty) {
         _showMessage(
@@ -223,17 +218,18 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
 
       // Create reservation document
       final docRef = await _firestore.collection('reservations').add({
-        'userId': user.email,
-        'userEmail': user.email,
-        'userName': user.displayName ?? user.email,
+        'userId': box.read('user')?['email'],
+        'userEmail': box.read('user')?['email'],
+        'userName':
+            '${box.read('user')?['given_name']} ${box.read('user')?['family_name']}',
         'tableId': _selectedTableId,
         'tableName': selectedTable['name'],
         'tableCapacity': selectedTable['capacity'],
         'date': dateStr,
         'dateDisplay': DateFormat('dd/MM/yyyy').format(_selectedDate),
         'timeSlot': _selectedTimeSlot,
-        'timeSlotDisplay': _timeSlots
-            .firstWhere((slot) => slot['value'] == _selectedTimeSlot)['display'],
+        'timeSlotDisplay': _timeSlots.firstWhere(
+            (slot) => slot['value'] == _selectedTimeSlot)['display'],
         'guests': _numberOfGuests,
         'status': 'pending', // Pending until checkout
         'createdAt': FieldValue.serverTimestamp(),
@@ -252,7 +248,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
       await _checkPendingReservation();
     } catch (e) {
       print('Error adding reservation to cart: $e');
-      _showMessage('Failed to add reservation. Please try again.', isError: true);
+      _showMessage('Failed to add reservation. Please try again.',
+          isError: true);
     }
   }
 
@@ -360,7 +357,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Show cart if user has pending reservation
-                    if (_pendingReservationId != null && _cartReservation != null)
+                    if (_pendingReservationId != null &&
+                        _cartReservation != null)
                       _buildCartSection(),
 
                     // Show reservation form only if no pending reservation
@@ -422,7 +420,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
             _buildCartDetail('Table', _cartReservation!['tableName']),
             _buildCartDetail('Date', _cartReservation!['dateDisplay']),
             _buildCartDetail('Time', _cartReservation!['timeSlotDisplay']),
-            _buildCartDetail('Guests', '${_cartReservation!['guests']} guest(s)'),
+            _buildCartDetail(
+                'Guests', '${_cartReservation!['guests']} guest(s)'),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -565,7 +564,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                   Icon(Icons.calendar_today, color: bayanihanBlue, size: 24),
                   const SizedBox(width: 12),
                   TextWidget(
-                    text: DateFormat('EEEE, dd MMMM yyyy').format(_selectedDate),
+                    text:
+                        DateFormat('EEEE, dd MMMM yyyy').format(_selectedDate),
                     fontSize: 16,
                     color: textBlack,
                     isBold: true,
@@ -719,9 +719,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                       }
                     }
                   : null,
-              backgroundColor: !isAvailable
-                  ? ashGray.withOpacity(0.3)
-                  : cloudWhite,
+              backgroundColor:
+                  !isAvailable ? ashGray.withOpacity(0.3) : cloudWhite,
               selectedColor: bayanihanBlue,
               disabledColor: ashGray.withOpacity(0.3),
               shape: RoundedRectangleBorder(
@@ -773,7 +772,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                     Icon(Icons.people, color: bayanihanBlue, size: 24),
                     const SizedBox(width: 12),
                     TextWidget(
-                      text: '$_numberOfGuests Guest${_numberOfGuests > 1 ? 's' : ''}',
+                      text:
+                          '$_numberOfGuests Guest${_numberOfGuests > 1 ? 's' : ''}',
                       fontSize: fontSize + 1,
                       color: textBlack,
                       isBold: true,
@@ -841,7 +841,9 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                         ),
                         child: Icon(
                           Icons.add,
-                          color: _numberOfGuests < maxGuests ? plainWhite : ashGray,
+                          color: _numberOfGuests < maxGuests
+                              ? plainWhite
+                              : ashGray,
                           size: 20,
                         ),
                       ),

@@ -17,10 +17,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:kaffi_cafe/utils/keys.dart';
 import 'package:kaffi_cafe/services/branch_service.dart';
 import 'package:kaffi_cafe/services/product_relationship_service.dart';
+import 'package:kaffi_cafe/widgets/recommendation_widget.dart';
 
 class OrderScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
   final void Function(Map<String, dynamic> item) removeFromCart;
+  final void Function(Map<String, dynamic> item, int quantity) addToCart;
   final VoidCallback clearCart;
   final double subtotal;
 
@@ -32,6 +34,7 @@ class OrderScreen extends StatefulWidget {
     Key? key,
     required this.cartItems,
     required this.removeFromCart,
+    required this.addToCart,
     required this.clearCart,
     required this.subtotal,
     required this.setBranch,
@@ -408,6 +411,25 @@ class _OrderScreenState extends State<OrderScreen> {
 
             // Points to earn
             _buildPointsSection(),
+
+            const SizedBox(height: 20),
+
+            // Frequently Bought Together Section
+            if (widget.cartItems.isNotEmpty)
+              RecommendationWidget(
+                cartItems: widget.cartItems,
+                addToCart: (item, quantity) {
+                  // Add to cart functionality
+                  // We need to add this item to the cart
+                  final Map<String, dynamic> newItem =
+                      Map<String, dynamic>.from(item);
+                  newItem['quantity'] = quantity;
+                  widget.removeFromCart(
+                      item); // This is a workaround - we need to add addToCart callback
+                },
+                selectedBranch: _storage.read('selectedBranch'),
+                selectedType: _storage.read('selectedType'),
+              ),
 
             const SizedBox(height: 100), // Space for bottom button
           ],

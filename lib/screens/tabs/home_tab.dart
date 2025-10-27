@@ -35,192 +35,221 @@ class _HomeTabState extends State<HomeTab> {
   Widget _buildRecentOrderSection() {
     final screenWidth = MediaQuery.of(context).size.width;
     final fontSize = screenWidth * 0.034;
-    // TODO: Replace with actual userId from authentication
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Recent orders from Firestore filtered by userId
-        StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('orders')
-              .where('userId', isEqualTo: box.read('user')?['email'])
-              .orderBy('timestamp', descending: true)
-              .limit(5)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final orders = snapshot.data!.docs;
-            if (orders.isEmpty) {
-              return Center(
-                child: TextWidget(
-                  text: 'No recent orders found.',
-                  fontSize: fontSize,
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('orders')
+          .where('userId', isEqualTo: box.read('user')?['email'])
+          .orderBy('timestamp', descending: true)
+          .limit(1) // Only get the most recent order
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final orders = snapshot.data!.docs;
+        if (orders.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: TextWidget(
+                text: 'No recent orders found.',
+                fontSize: fontSize,
+                color: textBlack,
+                fontFamily: 'Regular',
+              ),
+            ),
+          );
+        }
+
+        // Get the most recent order
+        final orderData = orders[0].data() as Map<String, dynamic>;
+        final items = orderData['items'] as List<dynamic>?;
+
+        if (items == null || items.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: TextWidget(
+                text: 'No items in recent order.',
+                fontSize: fontSize,
+                color: textBlack,
+                fontFamily: 'Regular',
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            // 💙 YOUR RECENT ORDER
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextWidget(
+                  text: 'YOUR RECENT ORDER',
+                  fontSize: 22,
                   color: textBlack,
-                  fontFamily: 'Regular',
+                  isBold: true,
+                  fontFamily: 'Bold',
                 ),
-              );
-            }
-            return ListView.separated(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: orders.length,
-              separatorBuilder: (context, index) => DividerWidget(),
-              itemBuilder: (context, index) {
-                final orderData = orders[index].data() as Map<String, dynamic>;
-                // Get first item in items array for display
-                final items = orderData['items'] as List<dynamic>?;
-                final firstItem = items != null && items.isNotEmpty
-                    ? items[0] as Map<String, dynamic>
-                    : null;
-                final name =
-                    firstItem != null ? firstItem['name'] ?? 'Order' : 'Order';
-                final price = firstItem != null
-                    ? firstItem['price'] ?? orderData['total'] ?? 0
-                    : orderData['total'] ?? 0;
-                final status = orderData['status'] ?? 'Unknown';
-                // Format Firestore timestamp
-                String formattedDate = '';
-                final rawTimestamp = orderData['timestamp'];
-                if (rawTimestamp != null) {
-                  DateTime? dateTime;
-                  if (rawTimestamp is Timestamp) {
-                    dateTime = rawTimestamp.toDate();
-                  } else if (rawTimestamp is String) {
-                    // Try to parse string
-                    dateTime = DateTime.tryParse(rawTimestamp);
-                  }
-                  if (dateTime != null) {
-                    formattedDate =
-                        '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} '
-                        '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-                  }
-                }
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    child: Row(
-                      children: [
-                        Icon(Icons.receipt_long,
-                            color: bayanihanBlue, size: 32),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextWidget(
-                                text: name,
-                                fontSize: fontSize + 2,
-                                color: textBlack,
-                                fontFamily: 'Bold',
-                                maxLines: 1,
-                              ),
-                              TextWidget(
-                                text: formattedDate.isNotEmpty
-                                    ? 'Date: $formattedDate'
-                                    : 'Date: -',
-                                fontSize: fontSize - 1,
-                                color: charcoalGray,
-                                fontFamily: 'Regular',
-                                maxLines: 1,
-                              ),
-                              TextWidget(
-                                text: 'Status: $status',
-                                fontSize: fontSize - 1,
-                                color: status == 'Delivered'
-                                    ? Colors.green
-                                    : status == 'Preparing'
-                                        ? Colors.orange
-                                        : Colors.red,
-                                fontFamily: 'Regular',
-                                maxLines: 1,
-                              ),
-                            ],
-                          ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (items.isNotEmpty && widget.addToCart != null) {
+                      for (var item in items) {
+                        if (item is Map<String, dynamic>) {
+                          final itemName = item['name'] ?? 'Order';
+                          final itemPrice = item['price'] ?? 0;
+                          final itemQuantity = item['quantity'] ?? 1;
+                          widget.addToCart!(
+                            {
+                              'name': itemName,
+                              'price': itemPrice,
+                              'image': item['image'] ?? '',
+                            },
+                            itemQuantity is int ? itemQuantity : 1,
+                          );
+                        }
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Order items added to cart!'),
+                          duration: Duration(seconds: 2),
+                          backgroundColor: bayanihanBlue,
                         ),
-                        SizedBox(width: 12),
-                        Column(
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFFB8D4A8),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 2,
+                  ),
+                  child: TextWidget(
+                    text: 'RE-ORDER',
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontFamily: 'Bold',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Product cards in a horizontal scrollable list
+            SizedBox(
+              height: 200,
+              child: ListView.builder(
+                physics: NeverScrollableScrollPhysics(),
+                scrollDirection: Axis.horizontal,
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index] as Map<String, dynamic>;
+                  final itemName = item['name'] ?? 'Product';
+                  final itemPrice = item['price'] ?? 0;
+                  final itemImage = item['image'] ?? '';
+
+                  return Center(
+                    child: Container(
+                      width: 350,
+                      margin: EdgeInsets.only(
+                        right: index < items.length - 1 ? 12 : 0,
+                      ),
+                      child: Card(
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            TextWidget(
-                              text: '₱$price',
-                              fontSize: fontSize + 2,
-                              color: bayanihanBlue,
-                              fontFamily: 'Bold',
-                              maxLines: 1,
+                            // Product Image
+                            ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(12),
+                              ),
+                              child: Container(
+                                height: 100,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color(0xFFB8D4A8),
+                                      Color(0xFFA8C498),
+                                    ],
+                                  ),
+                                ),
+                                child: itemImage.isNotEmpty
+                                    ? Image.network(
+                                        itemImage,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Center(
+                                          child: Icon(
+                                            Icons.local_cafe,
+                                            size: 50,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Icon(
+                                          Icons.local_cafe,
+                                          size: 50,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                              ),
                             ),
-                            SizedBox(height: 6),
-                            ElevatedButton.icon(
-                              icon:
-                                  Icon(Icons.shopping_cart_outlined, size: 18),
-                              label: Text('Reorder',
-                                  style: TextStyle(fontSize: fontSize - 2)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: bayanihanBlue,
-                                foregroundColor: Colors.white,
-                                minimumSize: Size(90, 32),
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                            // Product Details
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    TextWidget(
+                                      text: itemName,
+                                      fontSize: 14,
+                                      color: textBlack,
+                                      fontFamily: 'Medium',
+                                      maxLines: 2,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    TextWidget(
+                                      text: '₱ ${itemPrice.toStringAsFixed(2)}',
+                                      fontSize: 16,
+                                      color: bayanihanBlue,
+                                      fontFamily: 'Bold',
+                                      maxLines: 1,
+                                    ),
+                                  ],
                                 ),
                               ),
-                              onPressed: () {
-                                final items =
-                                    orderData['items'] as List<dynamic>?;
-                                if (items != null &&
-                                    items.isNotEmpty &&
-                                    widget.addToCart != null) {
-                                  for (var item in items) {
-                                    if (item is Map<String, dynamic>) {
-                                      final itemName = item['name'] ?? 'Order';
-                                      final itemPrice = item['price'] ?? 0;
-                                      final itemQuantity =
-                                          item['quantity'] ?? 1;
-                                      widget.addToCart!(
-                                        {
-                                          'name': itemName,
-                                          'price': itemPrice,
-                                        },
-                                        itemQuantity is int ? itemQuantity : 1,
-                                      );
-                                    }
-                                  }
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content:
-                                          Text('Order items added to cart!'),
-                                      duration: Duration(seconds: 1),
-                                    ),
-                                  );
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('No items to reorder.'),
-                                      duration: Duration(seconds: 1),
-                                    ),
-                                  );
-                                }
-                              },
                             ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            );
-          },
-        ),
-      ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        );
+      },
     );
   }
 
@@ -706,16 +735,7 @@ class _HomeTabState extends State<HomeTab> {
 
             DividerWidget(),
 
-            // 💙 YOUR RECENT ORDER
-            TextWidget(
-              text: 'YOUR RECENT ORDER',
-              fontSize: 22,
-              color: textBlack,
-              isBold: true,
-              fontFamily: 'Bold',
-            ),
-            const SizedBox(height: 10),
-            _buildRecentOrderSection(),
+            Center(child: _buildRecentOrderSection()),
             const SizedBox(height: 16),
             DividerWidget(),
             Row(
