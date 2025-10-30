@@ -218,10 +218,6 @@ class _MenuTabState extends State<MenuTab> {
                       children: [
                         // Product Grid
                         Container(
-                          constraints: BoxConstraints(
-                            maxHeight:
-                                MediaQuery.of(context).size.height * 0.425,
-                          ),
                           child: GridView.builder(
                             shrinkWrap: true,
                             gridDelegate:

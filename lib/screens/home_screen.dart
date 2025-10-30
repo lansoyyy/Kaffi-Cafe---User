@@ -158,14 +158,39 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final userEmail = _storage.read('user')?['email'];
       if (userEmail != null) {
-        // Get orders count to use as notification count
+        // Get orders to create notifications
         final ordersSnapshot = await _firestore
             .collection('orders')
             .where('userId', isEqualTo: userEmail)
+            .orderBy('timestamp', descending: true)
             .get();
 
+        // Get the list of read notifications from storage
+        List readNotifications = _storage.read('readNotifications') ?? [];
+
+        // Calculate unread notifications
+        int unreadCount = 0;
+
+        for (var doc in ordersSnapshot.docs) {
+          final orderData = doc.data();
+          final status = orderData['status'] ?? 'Pending';
+          final paymentMethod = orderData['paymentMethod'] ?? 'Unknown';
+
+          // Check if order status notification is unread
+          if (!readNotifications.contains('${doc.id}_status')) {
+            unreadCount++;
+          }
+
+          // Check if payment notification is unread (only for non-cash payments)
+          if (paymentMethod != 'Cash' && status != 'Pending') {
+            if (!readNotifications.contains('${doc.id}_payment')) {
+              unreadCount++;
+            }
+          }
+        }
+
         setState(() {
-          _notificationCount = ordersSnapshot.docs.length;
+          _notificationCount = unreadCount;
         });
       }
     } catch (e) {

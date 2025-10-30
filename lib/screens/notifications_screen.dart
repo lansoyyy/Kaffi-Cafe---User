@@ -79,6 +79,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }
         }
 
+        // Get the list of read notifications from storage
+        List readNotifications = _storage.read('readNotifications') ?? [];
+
         // Create order status notification
         notifications.add({
           'id': '${doc.id}_status',
@@ -86,7 +89,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           'message': 'Your order $orderId has been $status',
           'type': 'order_status',
           'timestamp': formattedTimestamp,
-          'isRead': false,
+          'isRead': readNotifications.contains('${doc.id}_status'),
           'orderDetails': {
             'orderId': orderId,
             'date': timestamp != null
@@ -112,7 +115,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 : 'Your payment of ₱${total.toStringAsFixed(2)} has been processed',
             'type': 'transaction',
             'timestamp': formattedTimestamp,
-            'isRead': false,
+            'isRead': readNotifications.contains('${doc.id}_payment'),
             'orderDetails': {
               'orderId': orderId,
               'date': timestamp != null
@@ -166,6 +169,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _markAsRead(String id) {
+    // Get the list of read notifications from storage
+    List readNotifications = _storage.read('readNotifications') ?? [];
+
+    // Add the notification ID to the list if not already present
+    if (!readNotifications.contains(id)) {
+      readNotifications.add(id);
+      // Save the updated list to storage
+      _storage.write('readNotifications', readNotifications);
+    }
+
+    // Update the notification state
     setState(() {
       final notification = _notifications.firstWhere((n) => n['id'] == id);
       notification['isRead'] = true;

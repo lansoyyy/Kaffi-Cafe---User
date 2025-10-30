@@ -997,7 +997,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 // FAQ Button
                 Center(
                   child: ButtonWidget(
-                    label: 'View FAQs',
+                    label: 'Chat with Bot',
                     onPressed: () {
                       Get.to(ChatFaqSupportScreen(),
                           transition: Transition.circularReveal);
