@@ -104,12 +104,9 @@ class _OrderScreenState extends State<OrderScreen> {
 
   Future<void> _loadPendingReservation() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
       final snapshot = await _firestore
           .collection('reservations')
-          .where('userId', isEqualTo: user.email)
+          .where('userId', isEqualTo: box.read('user')?['email'])
           .where('status', isEqualTo: 'pending')
           .limit(1)
           .get();

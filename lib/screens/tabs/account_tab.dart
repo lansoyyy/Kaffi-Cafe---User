@@ -471,6 +471,7 @@ class _AccountScreenState extends State<AccountScreen> {
                               orderData['timestamp'] as Timestamp?;
                           final status = orderData['status'] ?? 'Pending';
                           final total = orderData['total'] ?? 0.0;
+
                           final branch =
                               orderData['branch'] ?? 'Unknown Branch';
                           final type = orderData['type'] ?? '';

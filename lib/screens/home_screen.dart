@@ -330,11 +330,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               transition: Transition
                                                                   .circularReveal)
                                                           ?.then((result) {
+                                                        print('1234');
                                                         if (result != null &&
                                                             result is Map) {
                                                           if (result[
                                                                   'action'] ==
                                                               'checkout') {
+                                                            print('12345');
                                                             // User wants to checkout with reservation
                                                             setState(() {
                                                               _selectedIndex =

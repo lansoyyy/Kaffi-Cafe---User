@@ -819,7 +819,7 @@ class _HomeTabState extends State<HomeTab> {
                                                               transition: Transition
                                                                   .circularReveal)
                                                           ?.then((result) {
-                                                        if (result ==
+                                                        if (result['action'] ==
                                                             'goToMenu') {
                                                           if (widget
                                                                   .onBranchSelected !=

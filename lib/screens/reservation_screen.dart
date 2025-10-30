@@ -18,7 +18,6 @@ class SeatReservationScreen extends StatefulWidget {
 
 class _SeatReservationScreenState extends State<SeatReservationScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Tables configuration (3 tables with 2 seats, 2 tables with 4 seats)
   final List<Map<String, dynamic>> _tables = [
@@ -109,12 +108,9 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
   // Check if user has a pending reservation (in cart)
   Future<void> _checkPendingReservation() async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) return;
-
       final snapshot = await _firestore
           .collection('reservations')
-          .where('userId', isEqualTo: user.email)
+          .where('userId', isEqualTo: box.read('user')?['email'])
           .where('status', isEqualTo: 'pending')
           .limit(1)
           .get();
@@ -218,6 +214,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
 
       // Create reservation document
       final docRef = await _firestore.collection('reservations').add({
+        'branch': box.read('selectedBranch'),
         'userId': box.read('user')?['email'],
         'userEmail': box.read('user')?['email'],
         'userName':
@@ -246,6 +243,8 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
 
       // Refresh to show cart
       await _checkPendingReservation();
+
+      _proceedToCheckout();
     } catch (e) {
       print('Error adding reservation to cart: $e');
       _showMessage('Failed to add reservation. Please try again.',
@@ -282,7 +281,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
 
     // Navigate back with reservation data
     Navigator.pop(context, {
-      'action': 'checkout',
+      'action': 'goToMenu',
       'reservationId': _pendingReservationId,
       'reservation': _cartReservation,
     });
@@ -356,11 +355,6 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Show cart if user has pending reservation
-                    if (_pendingReservationId != null &&
-                        _cartReservation != null)
-                      _buildCartSection(),
-
                     // Show reservation form only if no pending reservation
                     if (_pendingReservationId == null) ...[
                       _buildHeader(),
@@ -378,82 +372,15 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
                         const SizedBox(height: 24),
                         _buildAddToCartButton(screenWidth, fontSize),
                       ],
+                    ] else ...[
+                      // Show pending reservation card
+                      _buildPendingReservationCard(screenWidth, fontSize),
                     ],
                     const SizedBox(height: 30),
                   ],
                 ),
               ),
             ),
-    );
-  }
-
-  // Build cart section
-  Widget _buildCartSection() {
-    return Card(
-      elevation: 4,
-      color: bayanihanBlue.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-        side: BorderSide(color: bayanihanBlue, width: 2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.shopping_cart, color: bayanihanBlue, size: 24),
-                const SizedBox(width: 8),
-                TextWidget(
-                  text: 'Reservation in Cart',
-                  fontSize: 20,
-                  color: bayanihanBlue,
-                  isBold: true,
-                  fontFamily: 'Bold',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            DividerWidget(),
-            const SizedBox(height: 12),
-            _buildCartDetail('Table', _cartReservation!['tableName']),
-            _buildCartDetail('Date', _cartReservation!['dateDisplay']),
-            _buildCartDetail('Time', _cartReservation!['timeSlotDisplay']),
-            _buildCartDetail(
-                'Guests', '${_cartReservation!['guests']} guest(s)'),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ButtonWidget(
-                    label: 'Cancel',
-                    onPressed: _cancelReservation,
-                    color: festiveRed,
-                    textColor: plainWhite,
-                    fontSize: 16,
-                    height: 45,
-                    radius: 10,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ButtonWidget(
-                    label: 'Proceed to Checkout',
-                    onPressed: _proceedToCheckout,
-                    color: bayanihanBlue,
-                    textColor: plainWhite,
-                    fontSize: 16,
-                    height: 45,
-                    radius: 10,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -882,6 +809,168 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
         height: 50,
         radius: 12,
         width: screenWidth * 0.6,
+      ),
+    );
+  }
+
+  // Build pending reservation card
+  Widget _buildPendingReservationCard(double screenWidth, double fontSize) {
+    if (_cartReservation == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: plainWhite,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: bayanihanBlue.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with icon and title
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: sunshineYellow.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.pending_actions,
+                  color: accentOrange,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextWidget(
+                      text: 'Pending Reservation',
+                      fontSize: 20,
+                      color: textBlack,
+                      isBold: true,
+                      fontFamily: 'Bold',
+                    ),
+                    TextWidget(
+                      text:
+                          'Complete your reservation by proceeding to checkout',
+                      fontSize: 14,
+                      color: charcoalGray,
+                      fontFamily: 'Regular',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // Reservation details
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cloudWhite,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                _buildCartDetail('Table', _cartReservation!['tableName'] ?? ''),
+                _buildCartDetail(
+                    'Date', _cartReservation!['dateDisplay'] ?? ''),
+                _buildCartDetail(
+                    'Time', _cartReservation!['timeSlotDisplay'] ?? ''),
+                _buildCartDetail(
+                    'Guests', '${_cartReservation!['guests'] ?? 1}'),
+                _buildCartDetail('Branch', _cartReservation!['branch'] ?? ''),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Action buttons
+          Row(
+            children: [
+              // Cancel button
+              Expanded(
+                child: ButtonWidget(
+                  label: 'Cancel',
+                  onPressed: _cancelReservation,
+                  color: festiveRed,
+                  textColor: plainWhite,
+                  fontSize: fontSize,
+                  height: 50,
+                  radius: 12,
+                ),
+              ),
+              // const SizedBox(width: 16),
+              // // Checkout button
+              // Expanded(
+              //   child: ButtonWidget(
+              //     label: 'Proceed to Checkout',
+              //     onPressed: _proceedToCheckout,
+              //     color: bayanihanBlue,
+              //     textColor: plainWhite,
+              //     fontSize: fontSize,
+              //     height: 50,
+              //     radius: 12,
+              //   ),
+              // ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Warning message
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: accentOrange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: accentOrange.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: accentOrange,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextWidget(
+                    text:
+                        'Your reservation will be held for 30 minutes. Please complete your checkout to confirm.',
+                    fontSize: 12,
+                    color: charcoalGray,
+                    fontFamily: 'Regular',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
