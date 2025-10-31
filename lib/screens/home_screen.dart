@@ -203,7 +203,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedIndex = index;
     });
     if (index == 1) {
-      showOrderDialog();
+      if (_storage.read('selectedBranch') == null ||
+          _storage.read('selectedType') == null) {
+        showOrderDialog();
+      }
     }
   }
 
@@ -211,6 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   showOrderDialog() {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) {
         final screenWidth = MediaQuery.of(context).size.width;
@@ -283,6 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     showDialog(
+                        barrierDismissible: false,
                         context: context,
                         builder: (context) => AlertDialog(
                               title: const Text(
@@ -722,6 +727,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showBranchSelectionDialog(String method) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         final screenWidth = MediaQuery.of(context).size.width;
         final fontSize = screenWidth * 0.036;

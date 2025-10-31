@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get_core/get_core.dart';
+import 'package:kaffi_cafe/screens/home_screen.dart';
 import 'package:kaffi_cafe/utils/colors.dart';
 import 'package:kaffi_cafe/widgets/button_widget.dart';
 import 'package:kaffi_cafe/widgets/divider_widget.dart';
@@ -208,23 +209,34 @@ class _MenuTabState extends State<MenuTab> {
                           ),
                         ),
                         SizedBox(width: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: (widget.selectedType != null)
-                                ? bayanihanBlue
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(22),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 7),
-                            child: TextWidget(
-                              text: widget.selectedType ?? 'Select Type',
-                              fontSize: 15,
+                        GestureDetector(
+                          onTap: () {
+                            if (widget.selectedType == null) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => const HomeScreen()),
+                              );
+                            }
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
                               color: (widget.selectedType != null)
-                                  ? Colors.white
-                                  : bayanihanBlue,
-                              fontFamily: 'Bold',
+                                  ? bayanihanBlue
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(22),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 7),
+                              child: TextWidget(
+                                text: widget.selectedType ?? 'Select Type',
+                                fontSize: 15,
+                                color: (widget.selectedType != null)
+                                    ? Colors.white
+                                    : bayanihanBlue,
+                                fontFamily: 'Bold',
+                              ),
                             ),
                           ),
                         ),
