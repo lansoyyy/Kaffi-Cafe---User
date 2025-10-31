@@ -812,6 +812,12 @@ class _HomeTabState extends State<HomeTab> {
                                                   ),
                                                   child: TouchableWidget(
                                                     onTap: () {
+                                                      box.write(
+                                                          'selectedBranch',
+                                                          branch['name']!);
+                                                      box.write('selectedType',
+                                                          'Dine in');
+
                                                       // Handle branch selection
                                                       Navigator.pop(context);
                                                       // Reservation here
@@ -819,6 +825,7 @@ class _HomeTabState extends State<HomeTab> {
                                                               transition: Transition
                                                                   .circularReveal)
                                                           ?.then((result) {
+                                                        print(result);
                                                         if (result['action'] ==
                                                             'goToMenu') {
                                                           if (widget

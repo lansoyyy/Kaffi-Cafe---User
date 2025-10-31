@@ -334,7 +334,7 @@ class _SeatReservationScreenState extends State<SeatReservationScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final fontSize = screenWidth * 0.036;
-
+    print(box.read('selectedBranch'));
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,

@@ -348,6 +348,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   ),
                                                   child: TouchableWidget(
                                                     onTap: () {
+                                                      box.write(
+                                                          'selectedBranch',
+                                                          branch['name']!);
+                                                      box.write('selectedType',
+                                                          'Dine in');
                                                       // Handle branch selection
                                                       Navigator.pop(context);
                                                       // Reservation here
@@ -355,12 +360,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               transition: Transition
                                                                   .circularReveal)
                                                           ?.then((result) {
-                                                        print('1234');
                                                         if (result != null &&
                                                             result is Map) {
                                                           if (result[
                                                                   'action'] ==
-                                                              'checkout') {
+                                                              'goToMenu') {
                                                             print('12345');
                                                             // User wants to checkout with reservation
                                                             setState(() {
@@ -755,6 +759,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _storage.write('selectedBranch', _selectedBranch);
                         _storage.write('selectedType', _selectedType);
                       });
+
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
